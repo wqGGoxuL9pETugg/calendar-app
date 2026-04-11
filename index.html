@@ -8,6 +8,7 @@
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 
 <style>
   :root {
@@ -86,6 +87,30 @@
     transition: opacity 0.15s;
   }
   .btn-add:hover { opacity: 0.85; }
+  .btn-auth {
+    padding: 6px 12px;
+    border-radius: 7px;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--text2);
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .btn-auth:hover {
+    background: var(--surface2);
+    color: var(--text);
+    border-color: var(--accent);
+  }
+  .auth-user {
+    display: none;
+    font-size: 11px;
+    color: var(--text2);
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,0.03);
+  }
 
   main { flex: 1; padding: 16px 20px; }
 
@@ -225,6 +250,82 @@
   }
   .parse-preview.empty { color: var(--text3); font-style: italic; }
 
+  .date-adjuster {
+    margin-top: 10px;
+    padding: 10px;
+    border-radius: 9px;
+    border: 1px dashed var(--border2);
+    background: rgba(255,255,255,0.02);
+  }
+  .date-adjuster-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .date-adjuster-title {
+    font-size: 10px;
+    color: var(--text3);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .date-adjust-actions,
+  .date-chip-list,
+  .popup-mini-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .date-adjust-actions { margin-top: 8px; }
+  .date-step-btn,
+  .popup-mini {
+    padding: 4px 9px;
+    border-radius: 999px;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--text2);
+    cursor: pointer;
+    font-size: 11px;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+  .date-step-btn:hover,
+  .popup-mini:hover {
+    background: var(--surface2);
+    border-color: var(--accent);
+    color: var(--accent2);
+  }
+  .date-chip-list { margin-top: 10px; }
+  .date-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: rgba(41,182,216,0.14);
+    border: 1px solid rgba(41,182,216,0.18);
+    color: var(--accent2);
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .date-chip button {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(0,0,0,0.2);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .date-chip button:hover {
+    background: rgba(255,107,107,0.2);
+    color: var(--red);
+  }
+
   .color-grid { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 6px; }
   .cswatch {
     width: 22px; height: 22px; border-radius: 50%; cursor: pointer;
@@ -264,6 +365,7 @@
   .popup-ev-note { font-size: 10px; color: var(--text3); }
   .popup-add { margin-top: 8px; width: 100%; padding: 6px; border-radius: 6px; border: 1px dashed var(--border2); background: transparent; color: var(--text3); cursor: pointer; font-size: 11px; transition: all 0.15s; }
   .popup-add:hover { color: var(--accent2); border-color: var(--accent); }
+  .popup-mini-actions { margin-top: 6px; }
 
   /* ── Firebase config modal ── */
   .config-banner {
@@ -312,6 +414,55 @@
   }
   .event-label-more { font-size: 9px; color: var(--text3); padding: 1px 4px; }
 
+  .app.is-locked {
+    filter: blur(12px);
+    opacity: 0.08;
+    pointer-events: none;
+    user-select: none;
+  }
+  .lock-modal { max-width: 380px; }
+  .lock-copy {
+    font-size: 12px;
+    color: var(--text2);
+    line-height: 1.8;
+    margin-bottom: 14px;
+  }
+  .lock-error {
+    min-height: 18px;
+    margin-top: 8px;
+    color: var(--red);
+    font-size: 11px;
+  }
+  .auth-modal { max-width: 420px; }
+  .auth-copy {
+    font-size: 12px;
+    color: var(--text2);
+    line-height: 1.8;
+    margin-bottom: 14px;
+  }
+  .auth-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+  }
+  .auth-actions .btn-cancel,
+  .auth-actions .btn-save {
+    flex: 1;
+  }
+  .auth-help {
+    margin-top: 10px;
+    font-size: 11px;
+    color: var(--text3);
+    line-height: 1.7;
+  }
+  .auth-error {
+    min-height: 18px;
+    margin-top: 8px;
+    color: var(--red);
+    font-size: 11px;
+  }
+
   @media (max-width: 600px) {
     .day-cell-big { min-height: 52px; padding: 3px 3px; }
     .day-num-big { font-size: 12px; }
@@ -331,6 +482,60 @@
 </style>
 </head>
 <body>
+<div class="overlay" id="authOverlay" style="display:none">
+<div class="modal auth-modal">
+  <div class="modal-header">
+    <h2>Firebase ログイン</h2>
+  </div>
+  <p class="auth-copy">
+    Firebase Authentication の Email/Password でログインしてから、クラウド同期された予定を開きます。
+    初回は同じ画面からアカウント作成もできます。
+  </p>
+
+  <div class="field">
+    <label>メールアドレス</label>
+    <input type="email" id="authEmail" placeholder="name@example.com" autocomplete="username">
+  </div>
+
+  <div class="field">
+    <label>パスワード</label>
+    <input type="password" id="authPassword" placeholder="8文字以上推奨" autocomplete="current-password">
+    <div class="auth-error" id="authError"></div>
+  </div>
+
+  <div class="auth-actions">
+    <button class="btn-cancel" type="button" onclick="registerWithEmailPassword()">新規登録</button>
+    <button class="btn-save" type="button" onclick="loginWithEmailPassword()">ログイン</button>
+  </div>
+
+  <p class="auth-help">
+    Firebase 未設定のときはこの画面は出ません。Email/Password を Firebase Console 側で有効化してから使ってください。
+  </p>
+</div>
+</div>
+
+<div class="overlay" id="lockOverlay" style="display:none">
+<div class="modal lock-modal">
+  <div class="modal-header">
+    <h2>データを復号</h2>
+  </div>
+  <p class="lock-copy">
+    このカレンダーの予定データは暗号化されています。設定したパスワードを入力すると、この端末上で復号して閲覧・編集できます。
+    初回は、最初に入力したパスワードで以後の保存データが暗号化されます。
+  </p>
+
+  <div class="field">
+    <label>パスワード</label>
+    <input type="password" id="lockPassword" placeholder="パスワードを入力" autocomplete="current-password">
+    <div class="lock-error" id="lockError"></div>
+  </div>
+
+  <div class="modal-footer">
+    <button class="btn-save" type="button" onclick="unlockApp()">ロック解除</button>
+  </div>
+</div>
+</div>
+
 <div class="app">
 
   <!-- Header -->
@@ -350,6 +555,8 @@
       <div class="sync-dot" id="syncDot"></div>
       <span id="syncText">未接続</span>
     </div>
+    <span class="auth-user" id="authUserLabel"></span>
+    <button class="btn-auth" id="btnSignOut" onclick="signOutUser()" style="display:none">ログアウト</button>
     <button class="btn-add" onclick="openAdd()">＋ 追加</button>
   </header>
 
@@ -401,6 +608,17 @@
       テキスト中の不要な文字は自動で無視されます
     </div>
     <div class="parse-preview empty" id="parsePreview">日付を入力すると自動で認識されます...</div>
+    <div class="date-adjuster" id="dateAdjuster" style="display:none">
+      <div class="date-adjuster-head">
+        <span class="date-adjuster-title">1日単位で調整</span>
+        <div class="date-adjust-actions">
+          <button class="date-step-btn" type="button" onclick="extendModalDates(-1)">＋ 前日</button>
+          <button class="date-step-btn" type="button" onclick="extendModalDates(1)">＋ 翌日</button>
+        </div>
+      </div>
+      <div class="date-chip-list" id="dateChipList"></div>
+      <div class="field-hint">×でその日だけ外せます。操作すると日付欄は日付一覧に整形されます。</div>
+    </div>
   </div>
 
   <div class="field">
@@ -445,9 +663,10 @@
   <p style="font-size:12px;color:var(--text2);line-height:1.8;margin-bottom:14px">
     <strong style="color:var(--accent2)">設定手順：</strong><br>
     1. <a href="https://console.firebase.google.com/" target="_blank" style="color:var(--accent2)">Firebase Console</a> でプロジェクトを作成<br>
-    2. 「Realtime Database」を作成（テストモードで開始）<br>
-    3. プロジェクト設定 → ウェブアプリを追加 → 設定値をコピー<br>
-    4. 下のフィールドに貼り付けて「保存して接続」
+    2. 「Authentication」で Email/Password を有効化<br>
+    3. 「Realtime Database」を作成（テストモードで開始）<br>
+    4. プロジェクト設定 → ウェブアプリを追加 → 設定値をコピー<br>
+    5. 下のフィールドに貼り付けて「保存して接続」
   </p>
 
   <div class="field">
@@ -490,15 +709,112 @@ let calMode = 'single'; // 'single' | 'year'
 let events = [];
 let selectedColor = '#29b6d8';
 let db = null;
+let auth = null;
+let currentUser = null;
 let eventsRef = null;
+let detachEventsListener = null;
+let detachAuthListener = null;
+let remoteStoreValue = null;
+let remoteReady = false;
+let remoteReadyPromise = Promise.resolve();
+let resolveRemoteReady = null;
+let authReady = true;
+let authReadyPromise = Promise.resolve();
+let resolveAuthReady = null;
+let sessionPassword = '';
 const TODAY = new Date();
+let isAppUnlocked = false;
 
 // ─── Firebase ─────────────────────────────────────────
 function loadFirebaseConfig() {
   try { return JSON.parse(localStorage.getItem('fbConfig') || 'null'); } catch(e) { return null; }
 }
 
+function createRemoteReadyPromise() {
+  remoteReady = false;
+  remoteReadyPromise = new Promise(resolve => {
+    resolveRemoteReady = resolve;
+  });
+}
+
+function markRemoteReady() {
+  if (remoteReady) return;
+  remoteReady = true;
+  if (resolveRemoteReady) resolveRemoteReady();
+}
+
+function createAuthReadyPromise() {
+  authReady = false;
+  authReadyPromise = new Promise(resolve => {
+    resolveAuthReady = resolve;
+  });
+}
+
+function markAuthReady() {
+  if (authReady) return;
+  authReady = true;
+  if (resolveAuthReady) resolveAuthReady();
+}
+
+function closeEventSubscription() {
+  if (detachEventsListener) {
+    detachEventsListener();
+    detachEventsListener = null;
+  }
+  eventsRef = null;
+  remoteStoreValue = null;
+}
+
+function setAuthError(message = '') {
+  document.getElementById('authError').textContent = message;
+}
+
+function formatAuthError(error) {
+  const code = error?.code || '';
+  const authMessages = {
+    'auth/email-already-in-use': 'このメールアドレスは既に使用されています。',
+    'auth/invalid-email': 'メールアドレスの形式が正しくありません。',
+    'auth/user-disabled': 'このアカウントは無効化されています。',
+    'auth/user-not-found': 'このメールアドレスのユーザーが見つかりません。',
+    'auth/wrong-password': 'パスワードが違います。',
+    'auth/invalid-credential': 'メールアドレスまたはパスワードを確認してください。',
+    'auth/invalid-login-credentials': 'メールアドレスまたはパスワードを確認してください。',
+    'auth/weak-password': 'パスワードは6文字以上で設定してください。',
+    'auth/too-many-requests': '試行回数が多すぎます。しばらく待ってから再試行してください。',
+    'auth/operation-not-allowed': 'Firebase Console で Email/Password ログインを有効化してください。',
+    'auth/network-request-failed': 'ネットワーク接続を確認してください。',
+  };
+  return authMessages[code] || error?.message || 'ログインに失敗しました。';
+}
+
+function updateAuthUi() {
+  const userLabel = document.getElementById('authUserLabel');
+  const signOutButton = document.getElementById('btnSignOut');
+
+  if (currentUser?.email) {
+    userLabel.textContent = currentUser.email;
+    userLabel.style.display = 'inline-flex';
+    signOutButton.style.display = 'inline-flex';
+    return;
+  }
+
+  userLabel.textContent = '';
+  userLabel.style.display = 'none';
+  signOutButton.style.display = 'none';
+}
+
 function initFirebase(cfg) {
+  closeEventSubscription();
+  if (detachAuthListener) {
+    detachAuthListener();
+    detachAuthListener = null;
+  }
+  createRemoteReadyPromise();
+  createAuthReadyPromise();
+  db = null;
+  remoteStoreValue = null;
+  currentUser = null;
+  auth = null;
   try {
     if (firebase.apps.length) {
       firebase.app().delete().then(() => connectFirebase(cfg));
@@ -515,21 +831,75 @@ function connectFirebase(cfg) {
   try {
     firebase.initializeApp(cfg);
     db = firebase.database();
-    eventsRef = db.ref('events');
-    setSyncStatus('connecting', '接続中...');
+    auth = firebase.auth();
+    setSyncStatus('connecting', '認証待ち...');
 
-    eventsRef.on('value', snap => {
-      const val = snap.val();
-      events = val ? Object.values(val) : [];
-      render();
-      setSyncStatus('connected', '同期中');
-    }, err => {
-      setSyncStatus('error', '接続エラー');
+    detachAuthListener = auth.onAuthStateChanged(user => {
+      currentUser = user;
+      markAuthReady();
+      updateAuthUi();
+      setAuthError('');
+
+      closeEventSubscription();
+      createRemoteReadyPromise();
+
+      if (!user) {
+        markRemoteReady();
+        events = [];
+        sessionPassword = '';
+        isAppUnlocked = false;
+        render();
+        setSyncStatus('', 'ログイン待ち');
+        applyAppLock();
+        return;
+      }
+
+      eventsRef = db.ref('users').child(user.uid).child('events');
+      const handleValue = snap => {
+        remoteStoreValue = snap.val();
+        markRemoteReady();
+
+        if (isAppUnlocked && sessionPassword) {
+          loadEventsFromStore().catch(error => {
+            console.error(error);
+            isAppUnlocked = false;
+            sessionPassword = '';
+            document.getElementById('lockError').textContent =
+              'パスワードが違うか、暗号化データを復号できませんでした。';
+            applyAppLock();
+            setSyncStatus('error', '復号エラー');
+          });
+          return;
+        }
+
+        setSyncStatus('connected', '同期中');
+      };
+      const handleError = () => {
+        markRemoteReady();
+        setSyncStatus('error', '接続エラー');
+      };
+
+      eventsRef.on('value', handleValue, handleError);
+      detachEventsListener = () => eventsRef.off('value', handleValue);
+
+      setSyncStatus('connecting', '同期接続中...');
+      applyAppLock();
+    }, error => {
+      console.error(error);
+      markAuthReady();
+      markRemoteReady();
+      setAuthError(formatAuthError(error));
+      setSyncStatus('error', '認証エラー');
+      applyAppLock();
     });
 
     document.getElementById('configBanner').style.display = 'none';
   } catch(e) {
     console.error(e);
+    db = null;
+    auth = null;
+    markAuthReady();
+    markRemoteReady();
     setSyncStatus('error', '設定エラー');
   }
 }
@@ -541,73 +911,530 @@ function setSyncStatus(state, text) {
   txt.textContent = text;
 }
 
+function applyAppLock() {
+  const app = document.querySelector('.app');
+  const authOverlay = document.getElementById('authOverlay');
+  const overlay = document.getElementById('lockOverlay');
+  const authEmail = document.getElementById('authEmail');
+  const input = document.getElementById('lockPassword');
+  const error = document.getElementById('lockError');
+  const needsAuth = Boolean(auth) && !currentUser;
+
+  if (needsAuth) {
+    closeModal();
+    closeConfig();
+    closeDayPopup();
+    app.classList.add('is-locked');
+    overlay.style.display = 'none';
+    authOverlay.style.display = 'flex';
+    error.textContent = '';
+    setTimeout(() => authEmail.focus(), 0);
+    return;
+  }
+
+  authOverlay.style.display = 'none';
+
+  if (isAppUnlocked) {
+    app.classList.remove('is-locked');
+    overlay.style.display = 'none';
+    error.textContent = '';
+    return;
+  }
+
+  closeModal();
+  closeConfig();
+  closeDayPopup();
+  app.classList.add('is-locked');
+  overlay.style.display = 'flex';
+  input.value = '';
+  error.textContent = '';
+  setTimeout(() => input.focus(), 0);
+}
+
+function unlockApp() {
+  const input = document.getElementById('lockPassword');
+  const error = document.getElementById('lockError');
+
+  const password = input.value.trim();
+  if (!password) {
+    error.textContent = 'パスワードを入力してください。';
+    input.focus();
+    return;
+  }
+
+  sessionPassword = password;
+  error.textContent = '';
+
+  Promise.resolve()
+    .then(() => ensureStoreReady())
+    .then(() => loadEventsFromStore())
+    .then(() => {
+      isAppUnlocked = true;
+      applyAppLock();
+    })
+    .catch(lockError => {
+      console.error(lockError);
+      isAppUnlocked = false;
+      sessionPassword = '';
+      error.textContent =
+        lockError instanceof Error
+          ? lockError.message
+          : 'パスワードが違うか、暗号化データを復号できませんでした。';
+      input.select();
+    });
+}
+
+document.getElementById('lockPassword').addEventListener('keydown', e => {
+  if (e.key === 'Enter') unlockApp();
+});
+
+function ensureStoreReady() {
+  if (auth) {
+    return authReadyPromise.then(() => {
+      if (!currentUser) {
+        throw new Error('先に Firebase へログインしてください。');
+      }
+      return remoteReadyPromise;
+    });
+  }
+
+  return Promise.resolve();
+}
+
+function getAuthFormValues() {
+  return {
+    email: document.getElementById('authEmail').value.trim(),
+    password: document.getElementById('authPassword').value,
+  };
+}
+
+async function loginWithEmailPassword() {
+  if (!auth) {
+    setAuthError('先に Firebase を設定してください。');
+    return;
+  }
+
+  const { email, password } = getAuthFormValues();
+  if (!email || !password) {
+    setAuthError('メールアドレスとパスワードを入力してください。');
+    return;
+  }
+
+  setAuthError('');
+  try {
+    await auth.signInWithEmailAndPassword(email, password);
+  } catch (error) {
+    setAuthError(formatAuthError(error));
+  }
+}
+
+async function registerWithEmailPassword() {
+  if (!auth) {
+    setAuthError('先に Firebase を設定してください。');
+    return;
+  }
+
+  const { email, password } = getAuthFormValues();
+  if (!email || !password) {
+    setAuthError('メールアドレスとパスワードを入力してください。');
+    return;
+  }
+
+  setAuthError('');
+  try {
+    await auth.createUserWithEmailAndPassword(email, password);
+  } catch (error) {
+    setAuthError(formatAuthError(error));
+  }
+}
+
+async function signOutUser() {
+  if (!auth) return;
+  await auth.signOut();
+}
+
+document.getElementById('authPassword').addEventListener('keydown', e => {
+  if (e.key === 'Enter') loginWithEmailPassword();
+});
+
 // ─── Date Parser ──────────────────────────────────────
 // Extracts all date patterns from arbitrary Japanese text
+function pad2(value) {
+  return String(value).padStart(2, '0');
+}
+
+function toUtcDate(year, month, day) {
+  return new Date(Date.UTC(year, month - 1, day));
+}
+
+function isValidDateParts(year, month, day) {
+  if (![year, month, day].every(Number.isInteger)) return false;
+  const date = toUtcDate(year, month, day);
+  return date.getUTCFullYear() === year
+    && date.getUTCMonth() === month - 1
+    && date.getUTCDate() === day;
+}
+
+function parseDateKey(dateKey) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateKey || '');
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  return isValidDateParts(year, month, day) ? { year, month, day } : null;
+}
+
+function uniqueSortedDates(dates) {
+  return [...new Set((dates || []).filter(Boolean))].sort();
+}
+
+function addDaysToDateKey(dateKey, amount) {
+  const parts = parseDateKey(dateKey);
+  if (!parts) return null;
+  const date = toUtcDate(parts.year, parts.month, parts.day);
+  date.setUTCDate(date.getUTCDate() + amount);
+  return fmtDate(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate());
+}
+
+function expandDateRange(startKey, endKey) {
+  const start = parseDateKey(startKey);
+  const end = parseDateKey(endKey);
+  if (!start || !end) return [];
+
+  const cursor = toUtcDate(start.year, start.month, start.day);
+  const limit = toUtcDate(end.year, end.month, end.day);
+  if (cursor > limit) return [];
+
+  const dates = [];
+  while (cursor <= limit) {
+    dates.push(fmtDate(cursor.getUTCFullYear(), cursor.getUTCMonth() + 1, cursor.getUTCDate()));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+
+  return uniqueSortedDates(dates);
+}
+
 function extractDates(text, year) {
   if (!text) return [];
+  const baseYear = Number(year);
+  if (!Number.isInteger(baseYear)) return [];
   const results = [];
-
-  // 区切り統一
-  text = text.replace(/[、。]/g, ',').replace(/\./g, ',');
-
   let s = text
+    .replace(/[、。]/g, ',')
+    .replace(/\./g, ',')
     .replace(/（/g, '(')
     .replace(/）/g, ')')
     .replace(/　/g, ' ')
-    .replace(/・/g, ',');
+    .replace(/・/g, ',')
+    .replace(/[－ー―‐〜～]/g, '~');
 
-  // ────────────────
-  // ★ 年/月 抽出（ベース月取得）
-  // ────────────────
-  let baseMonth = null;
-  let baseYear = year;
+  const pushDate = dateKey => {
+    if (dateKey) results.push(dateKey);
+  };
+  const pushRange = (startKey, endKey) => {
+    expandDateRange(startKey, endKey).forEach(pushDate);
+  };
 
-  const ymMatch = s.match(/(\d{4})\/(\d{1,2})/);
-  if (ymMatch) {
-    baseYear = parseInt(ymMatch[1]);
-    baseMonth = parseInt(ymMatch[2]);
-    s = s.replace(ymMatch[0], '');
-  } else {
-    const mMatch = s.match(/(\d{1,2})\//);
-    if (mMatch) {
-      baseMonth = parseInt(mMatch[1]);
-    }
+  s = s.replace(
+    /(\d{1,2})[\/月](\d{1,2})日?\s*[~\-]\s*(\d{1,2})[\/月](\d{1,2})日?/g,
+    (_, m1, d1, m2, d2) => {
+      const startKey = fmtDate(baseYear, Number(m1), Number(d1));
+      const sameYearEnd = fmtDate(baseYear, Number(m2), Number(d2));
+      const endYear = startKey && sameYearEnd && sameYearEnd < startKey ? baseYear + 1 : baseYear;
+      pushRange(startKey, fmtDate(endYear, Number(m2), Number(d2)));
+      return ' ';
+    },
+  );
+
+  s = s.replace(
+    /(?:\d{4}[\/-])?(\d{1,2})\/(\d{1,2})\s*[~\-]\s*(\d{1,2})(?!\s*[\/月]|\d)/g,
+    (_, m, d1, d2) => {
+      pushRange(
+        fmtDate(baseYear, Number(m), Number(d1)),
+        fmtDate(baseYear, Number(m), Number(d2)),
+      );
+      return ' ';
+    },
+  );
+
+  s = s.replace(/(\d{1,2})\/(\d{1,2}(?:\s*,\s*\d{1,2})+)/g, (_, month, dayList) => {
+    dayList
+      .split(',')
+      .map(day => Number(day.trim()))
+      .forEach(day => pushDate(fmtDate(baseYear, Number(month), day)));
+    return ' ';
+  });
+
+  s = s.replace(/(\d{4})-(\d{1,2})-(\d{1,2})/g, (_, y, m, d) => {
+    pushDate(fmtDate(Number(y), Number(m), Number(d)));
+    return ' ';
+  });
+
+  s = s.replace(/(\d{1,2})月(\d{1,2})日/g, (_, m, d) => {
+    pushDate(fmtDate(baseYear, Number(m), Number(d)));
+    return ' ';
+  });
+
+  s = s.replace(/(\d{1,2})\/(\d{1,2})(?:\([日月火水木金土]\))?/g, (_, m, d) => {
+    pushDate(fmtDate(baseYear, Number(m), Number(d)));
+    return ' ';
+  });
+
+  return uniqueSortedDates(results);
+}
+function fmtDate(y,m,d) {
+  const year = Number(y);
+  const month = Number(m);
+  const day = Number(d);
+  if (!isValidDateParts(year, month, day)) return null;
+  return `${year}-${pad2(month)}-${pad2(day)}`;
+}
+
+function normalizeEventRecord(ev) {
+  return {
+    ...ev,
+    dates: uniqueSortedDates(Array.isArray(ev?.dates) ? ev.dates : []),
+    note: ev?.note || '',
+    color: ev?.color || '#29b6d8',
+  };
+}
+
+const textEncoder = new TextEncoder();
+const textDecoder = new TextDecoder();
+
+function bytesToBase64(value) {
+  const bytes = value instanceof Uint8Array ? value : new Uint8Array(value);
+  let binary = '';
+  bytes.forEach(byte => {
+    binary += String.fromCharCode(byte);
+  });
+  return btoa(binary);
+}
+
+function base64ToBytes(value) {
+  const binary = atob(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+function randomBase64(size) {
+  const bytes = new Uint8Array(size);
+  crypto.getRandomValues(bytes);
+  return bytesToBase64(bytes);
+}
+
+function isEncryptedStoreValue(value) {
+  return Boolean(
+    value &&
+    typeof value === 'object' &&
+    typeof value.ciphertext === 'string' &&
+    typeof value.iv === 'string' &&
+    typeof value.salt === 'string',
+  );
+}
+
+function extractLegacyEvents(value) {
+  if (Array.isArray(value)) {
+    return value.map(normalizeEventRecord);
   }
 
-  // ────────────────
-  // ① 同月範囲（26～31）
-  // ────────────────
-  s = s.replace(/(\d{1,2})\s*[〜~\-]\s*(\d{1,2})/g, (_, d1, d2) => {
-    if (!baseMonth) return _;
-    for (let d = +d1; d <= +d2; d++) {
-      results.push(fmtDate(baseYear, baseMonth, d));
+  if (!value || typeof value !== 'object' || isEncryptedStoreValue(value)) {
+    return null;
+  }
+
+  const items = Object.values(value).filter(item =>
+    item && typeof item === 'object' && (Array.isArray(item.dates) || typeof item.title === 'string'),
+  );
+
+  return items.length ? items.map(normalizeEventRecord) : null;
+}
+
+function readLocalStoreValue() {
+  try {
+    return JSON.parse(localStorage.getItem('calEvents') || 'null');
+  } catch (error) {
+    return null;
+  }
+}
+
+function writeLocalStoreValue(value) {
+  try {
+    localStorage.setItem('calEvents', JSON.stringify(value));
+  } catch (error) {}
+}
+
+function getCurrentStoreValue() {
+  return db ? remoteStoreValue : readLocalStoreValue();
+}
+
+async function readLegacyRemoteStoreValue() {
+  if (!db) return null;
+
+  try {
+    const snapshot = await db.ref('events').once('value');
+    const value = snapshot.val();
+    if (isEncryptedStoreValue(value) || extractLegacyEvents(value)) {
+      return value;
     }
-    return ' ';
-  });
+  } catch (error) {
+    console.error(error);
+  }
 
-  // ────────────────
-  // ② 単日（1,5,6,7...）
-  // ────────────────
-  const parts = s.split(',');
-  parts.forEach(p => {
-    const n = parseInt(p.trim());
-    if (!isNaN(n) && baseMonth) {
-      results.push(fmtDate(baseYear, baseMonth, n));
+  return null;
+}
+
+async function deriveEncryptionKey(password, salt) {
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    textEncoder.encode(password),
+    'PBKDF2',
+    false,
+    ['deriveKey'],
+  );
+
+  return crypto.subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      salt: base64ToBytes(salt),
+      iterations: 150000,
+      hash: 'SHA-256',
+    },
+    keyMaterial,
+    {
+      name: 'AES-GCM',
+      length: 256,
+    },
+    false,
+    ['encrypt', 'decrypt'],
+  );
+}
+
+async function encryptEventsPayload(items) {
+  if (!sessionPassword) {
+    throw new Error('復号用のパスワードを入力してください。');
+  }
+
+  const currentStore = getCurrentStoreValue();
+  const salt = isEncryptedStoreValue(currentStore) ? currentStore.salt : randomBase64(16);
+  const iv = randomBase64(12);
+  const key = await deriveEncryptionKey(sessionPassword, salt);
+  const plaintext = textEncoder.encode(
+    JSON.stringify({
+      version: 1,
+      events: items.map(normalizeEventRecord),
+    }),
+  );
+
+  const ciphertext = await crypto.subtle.encrypt(
+    {
+      name: 'AES-GCM',
+      iv: base64ToBytes(iv),
+    },
+    key,
+    plaintext,
+  );
+
+  return {
+    version: 1,
+    salt,
+    iv,
+    ciphertext: bytesToBase64(ciphertext),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+async function decryptEventsPayload(payload) {
+  try {
+    const key = await deriveEncryptionKey(sessionPassword, payload.salt);
+    const plaintext = await crypto.subtle.decrypt(
+      {
+        name: 'AES-GCM',
+        iv: base64ToBytes(payload.iv),
+      },
+      key,
+      base64ToBytes(payload.ciphertext),
+    );
+    const parsed = JSON.parse(textDecoder.decode(plaintext));
+    return Array.isArray(parsed?.events) ? parsed.events.map(normalizeEventRecord) : [];
+  } catch (error) {
+    throw new Error('パスワードが違うか、暗号化データを復号できませんでした。');
+  }
+}
+
+async function persistEvents() {
+  const payload = await encryptEventsPayload(events);
+
+  if (db) {
+    if (!eventsRef || !currentUser) {
+      throw new Error('先に Firebase へログインしてください。');
     }
-  });
+    remoteStoreValue = payload;
+    await eventsRef.set(payload);
+    return;
+  }
 
-  // ────────────────
-  // ③ 通常フォーマットも維持
-  // ────────────────
-  s = s.replace(/(\d{1,2})\/(\d{1,2})/g, (_, m, d) => {
-    results.push(fmtDate(year, +m, +d));
-    return ' ';
-  });
+  writeLocalStoreValue(payload);
+}
 
-  return [...new Set(results)].filter(Boolean).sort();
-}function fmtDate(y,m,d) {
-  if (m<1||m>12||d<1||d>31) return null;
-  return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+async function loadEventsFromStore() {
+  const storeValue = getCurrentStoreValue();
+  let sourceValue = storeValue;
+
+  if (eventsRef && !sourceValue) {
+    sourceValue = await readLegacyRemoteStoreValue();
+  }
+
+  if (eventsRef && !sourceValue) {
+    sourceValue = readLocalStoreValue();
+  }
+
+  if (!sourceValue) {
+    events = [];
+    render();
+    return;
+  }
+
+  if (isEncryptedStoreValue(sourceValue)) {
+    events = await decryptEventsPayload(sourceValue);
+    if (eventsRef && sourceValue !== storeValue) {
+      await persistEvents();
+    }
+    render();
+    return;
+  }
+
+  const legacyEvents = extractLegacyEvents(sourceValue);
+  if (legacyEvents) {
+    events = legacyEvents;
+    await persistEvents();
+    render();
+    return;
+  }
+
+  events = [];
+  render();
+}
+
+function renderDateAdjuster(dates) {
+  const wrap = document.getElementById('dateAdjuster');
+  const chipList = document.getElementById('dateChipList');
+
+  if (!dates.length) {
+    wrap.style.display = 'none';
+    chipList.innerHTML = '';
+    return;
+  }
+
+  chipList.innerHTML = dates.map(dateKey => `
+    <span class="date-chip">
+      ${dateKey}
+      <button type="button" onclick="removeModalDate('${dateKey}')">✕</button>
+    </span>
+  `).join('');
+  wrap.style.display = 'block';
 }
 
 function updateParsePreview() {
@@ -622,16 +1449,68 @@ function updateParsePreview() {
     el.innerHTML = `<strong style="color:var(--accent2)">${dates.length}件</strong>：` +
       dates.map(d => `<span class="parsed-date">${d}</span>`).join('');
   }
+  renderDateAdjuster(dates);
 }
 
 document.getElementById('evDates').addEventListener('input', updateParsePreview);
+
+function setModalDates(dates) {
+  document.getElementById('evDates').value = uniqueSortedDates(dates).join('\n');
+  updateParsePreview();
+}
+
+function removeModalDate(dateKey) {
+  const dates = extractDates(document.getElementById('evDates').value, currentYear)
+    .filter(value => value !== dateKey);
+  setModalDates(dates);
+}
+
+function extendModalDates(direction) {
+  const dates = extractDates(document.getElementById('evDates').value, currentYear);
+  if (!dates.length) {
+    alert('先に日付を入力してください');
+    return;
+  }
+
+  const target = direction < 0
+    ? addDaysToDateKey(dates[0], -1)
+    : addDaysToDateKey(dates[dates.length - 1], 1);
+
+  if (!target) return;
+  setModalDates([...dates, target]);
+}
 
 // ─── Events CRUD ──────────────────────────────────────
 function getEvents() { return events; }
 
 function getEventsForDate(ds) { return events.filter(e => e.dates && e.dates.includes(ds)); }
 
-function saveEvent() {
+async function upsertEvent(ev) {
+  const normalized = normalizeEventRecord(ev);
+
+  const index = events.findIndex(item => item.id === normalized.id);
+  if (index >= 0) events[index] = normalized;
+  else events.push(normalized);
+  await persistEvents();
+  render();
+}
+
+async function removeDateFromEvent(id, dateKey) {
+  const ev = events.find(item => item.id === id);
+  if (!ev) return;
+
+  const nextDates = uniqueSortedDates((ev.dates || []).filter(value => value !== dateKey));
+  if (!nextDates.length) {
+    if (!confirm('この日を外すとイベントが空になります。イベントごと削除しますか？')) return;
+    await deleteEvent(id, true);
+    return;
+  }
+
+  await upsertEvent({ ...ev, dates: nextDates });
+  closeDayPopup();
+}
+
+async function saveEvent() {
   const title = document.getElementById('evTitle').value.trim();
   const raw = document.getElementById('evDates').value;
   const note = document.getElementById('evNote').value.trim();
@@ -648,46 +1527,25 @@ function saveEvent() {
     return;
   }
 
-  const SECRET = "honnomushi"; // ←好きな文字に変えてOK
+  const ev = normalizeEventRecord({
+    id: editId || ('ev_' + Date.now()),
+    title,
+    dates,
+    note,
+    color: selectedColor,
+  });
 
-  const ev = {
-  id: editId || ('ev_' + Date.now()),
-  title,
-  dates,
-  note,
-  color: selectedColor,
-  secret: "honnomushi" // ←追加
-};
-
-  if (eventsRef) {
-    eventsRef.child(ev.id).set(ev);
-  } else {
-    if (editId) {
-      const i = events.findIndex(e => e.id === editId);
-      if (i >= 0) events[i] = ev;
-      else events.push(ev);
-    } else {
-      events.push(ev);
-    }
-    saveLocal();
-    render();
-  }
+  await upsertEvent(ev);
 
   closeModal();
 }
-function deleteEvent(id) {
-  if (!confirm('このイベントを削除しますか？')) return;
-  if (eventsRef) {
-    eventsRef.child(id).remove();
-  } else {
-    events = events.filter(e => e.id !== id);
-    saveLocal(); render();
-  }
+async function deleteEvent(id, skipConfirm = false) {
+  if (!skipConfirm && !confirm('このイベントを削除しますか？')) return;
+  events = events.filter(e => e.id !== id);
+  await persistEvents();
+  render();
   closeDayPopup();
 }
-
-function saveLocal() { try { localStorage.setItem('calEvents', JSON.stringify(events)); } catch(e){} }
-function loadLocal() { try { events = JSON.parse(localStorage.getItem('calEvents') || '[]'); } catch(e){ events = []; } }
 
 // ─── Render ───────────────────────────────────────────
 const MONTHS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
@@ -823,6 +1681,11 @@ function showDayPopup(ds, e) {
       <div style="flex:1">
         <div class="popup-ev-title">${ev.title}</div>
         ${ev.note?`<div class="popup-ev-note">${ev.note}</div>`:''}
+        ${ev.dates && ev.dates.length > 1 ? `
+          <div class="popup-mini-actions">
+            <button class="popup-mini" onclick="removeDateFromEvent('${ev.id}','${ds}')">− この日だけ外す</button>
+          </div>
+        ` : ''}
       </div>
       <div style="display:flex;gap:3px">
         <button class="ev-btn" style="width:22px;height:22px;font-size:11px" onclick="openEdit('${ev.id}')">✎</button>
@@ -964,14 +1827,16 @@ function saveFirebaseConfig() {
     projectId: document.getElementById('cfgProjectId').value.trim(),
     appId: document.getElementById('cfgAppId').value.trim(),
   };
-  if (!cfg.apiKey || !cfg.databaseURL) { alert('API Key と Database URL は必須です'); return; }
+  if (!cfg.apiKey || !cfg.authDomain || !cfg.databaseURL) {
+    alert('API Key / Auth Domain / Database URL は必須です');
+    return;
+  }
   localStorage.setItem('fbConfig', JSON.stringify(cfg));
   closeConfig();
   initFirebase(cfg);
 }
 
 // ─── Init ─────────────────────────────────────────────
-loadLocal();
 const savedCfg = loadFirebaseConfig();
 if (savedCfg && savedCfg.apiKey) {
   document.getElementById('configBanner').style.display = 'none';
@@ -980,16 +1845,8 @@ if (savedCfg && savedCfg.apiKey) {
   setSyncStatus('', 'ローカル保存');
 }
 
-// Sample data (only if empty)
-if (!events.length) {
-  events = [
-    { id:'s1', title:'第一航海', dates:['2026-06-01','2026-06-02'], note:'', color:'#29b6d8' },
-    { id:'s2', title:'第二航海', dates:['2026-06-08','2026-06-09'], note:'', color:'#5ba4f5' },
-  ];
-  saveLocal();
-}
-
 render();
+applyAppLock();
 </script>
 </body>
 </html>
