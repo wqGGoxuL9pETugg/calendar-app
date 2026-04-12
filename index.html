@@ -87,6 +87,30 @@
     transition: opacity 0.15s;
   }
   .btn-add:hover { opacity: 0.85; }
+  .btn-auth {
+    padding: 6px 12px;
+    border-radius: 7px;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--text2);
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .btn-auth:hover {
+    background: var(--surface2);
+    color: var(--text);
+    border-color: var(--accent);
+  }
+  .auth-user {
+    display: none;
+    font-size: 11px;
+    color: var(--text2);
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,0.03);
+  }
 
   main { flex: 1; padding: 16px 20px; }
 
@@ -409,6 +433,35 @@
     color: var(--red);
     font-size: 11px;
   }
+  .auth-modal { max-width: 420px; }
+  .auth-copy {
+    font-size: 12px;
+    color: var(--text2);
+    line-height: 1.8;
+    margin-bottom: 14px;
+  }
+  .auth-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+  }
+  .auth-actions .btn-cancel,
+  .auth-actions .btn-save {
+    flex: 1;
+  }
+  .auth-help {
+    margin-top: 10px;
+    font-size: 11px;
+    color: var(--text3);
+    line-height: 1.7;
+  }
+  .auth-error {
+    min-height: 18px;
+    margin-top: 8px;
+    color: var(--red);
+    font-size: 11px;
+  }
 
   @media (max-width: 600px) {
     .day-cell-big { min-height: 52px; padding: 3px 3px; }
@@ -429,6 +482,38 @@
 </style>
 </head>
 <body>
+<div class="overlay" id="authOverlay" style="display:none">
+<div class="modal auth-modal">
+  <div class="modal-header">
+    <h2>Firebase ログイン</h2>
+  </div>
+  <p class="auth-copy">
+    Firebase Authentication の Email/Password でログインしてから、クラウド同期された予定を開きます。
+    初回は同じ画面からアカウント作成もできます。
+  </p>
+
+  <div class="field">
+    <label>メールアドレス</label>
+    <input type="email" id="authEmail" placeholder="name@example.com" autocomplete="username">
+  </div>
+
+  <div class="field">
+    <label>パスワード</label>
+    <input type="password" id="authPassword" placeholder="8文字以上推奨" autocomplete="current-password">
+    <div class="auth-error" id="authError"></div>
+  </div>
+
+  <div class="auth-actions">
+    <button class="btn-cancel" type="button" onclick="registerWithEmailPassword()">新規登録</button>
+    <button class="btn-save" type="button" onclick="loginWithEmailPassword()">ログイン</button>
+  </div>
+
+  <p class="auth-help">
+    Firebase 未設定のときはこの画面は出ません。Email/Password を Firebase Console 側で有効化してから使ってください。
+  </p>
+</div>
+</div>
+
 <div class="overlay" id="lockOverlay" style="display:none">
 <div class="modal lock-modal">
   <div class="modal-header">
@@ -470,6 +555,8 @@
       <div class="sync-dot" id="syncDot"></div>
       <span id="syncText">未接続</span>
     </div>
+    <span class="auth-user" id="authUserLabel"></span>
+    <button class="btn-auth" id="btnSignOut" onclick="signOutUser()" style="display:none">ログアウト</button>
     <button class="btn-add" onclick="openAdd()">＋ 追加</button>
   </header>
 
@@ -576,9 +663,10 @@
   <p style="font-size:12px;color:var(--text2);line-height:1.8;margin-bottom:14px">
     <strong style="color:var(--accent2)">設定手順：</strong><br>
     1. <a href="https://console.firebase.google.com/" target="_blank" style="color:var(--accent2)">Firebase Console</a> でプロジェクトを作成<br>
-    2. 「Realtime Database」を作成（テストモードで開始）<br>
-    3. プロジェクト設定 → ウェブアプリを追加 → 設定値をコピー<br>
-    4. 下のフィールドに貼り付けて「保存して接続」
+    2. 「Authentication」で Email/Password を有効化<br>
+    3. 「Realtime Database」を作成（テストモードで開始）<br>
+    4. プロジェクト設定 → ウェブアプリを追加 → 設定値をコピー<br>
+    5. 下のフィールドに貼り付けて「保存して接続」
   </p>
 
   <div class="field">
@@ -621,11 +709,18 @@ let calMode = 'single'; // 'single' | 'year'
 let events = [];
 let selectedColor = '#29b6d8';
 let db = null;
+let auth = null;
+let currentUser = null;
 let eventsRef = null;
+let detachEventsListener = null;
+let detachAuthListener = null;
 let remoteStoreValue = null;
 let remoteReady = false;
 let remoteReadyPromise = Promise.resolve();
 let resolveRemoteReady = null;
+let authReady = true;
+let authReadyPromise = Promise.resolve();
+let resolveAuthReady = null;
 let sessionPassword = '';
 const TODAY = new Date();
 let isAppUnlocked = false;
@@ -648,9 +743,78 @@ function markRemoteReady() {
   if (resolveRemoteReady) resolveRemoteReady();
 }
 
-function initFirebase(cfg) {
-  createRemoteReadyPromise();
+function createAuthReadyPromise() {
+  authReady = false;
+  authReadyPromise = new Promise(resolve => {
+    resolveAuthReady = resolve;
+  });
+}
+
+function markAuthReady() {
+  if (authReady) return;
+  authReady = true;
+  if (resolveAuthReady) resolveAuthReady();
+}
+
+function closeEventSubscription() {
+  if (detachEventsListener) {
+    detachEventsListener();
+    detachEventsListener = null;
+  }
+  eventsRef = null;
   remoteStoreValue = null;
+}
+
+function setAuthError(message = '') {
+  document.getElementById('authError').textContent = message;
+}
+
+function formatAuthError(error) {
+  const code = error?.code || '';
+  const authMessages = {
+    'auth/email-already-in-use': 'このメールアドレスは既に使用されています。',
+    'auth/invalid-email': 'メールアドレスの形式が正しくありません。',
+    'auth/user-disabled': 'このアカウントは無効化されています。',
+    'auth/user-not-found': 'このメールアドレスのユーザーが見つかりません。',
+    'auth/wrong-password': 'パスワードが違います。',
+    'auth/invalid-credential': 'メールアドレスまたはパスワードを確認してください。',
+    'auth/invalid-login-credentials': 'メールアドレスまたはパスワードを確認してください。',
+    'auth/weak-password': 'パスワードは6文字以上で設定してください。',
+    'auth/too-many-requests': '試行回数が多すぎます。しばらく待ってから再試行してください。',
+    'auth/operation-not-allowed': 'Firebase Console で Email/Password ログインを有効化してください。',
+    'auth/network-request-failed': 'ネットワーク接続を確認してください。',
+  };
+  return authMessages[code] || error?.message || 'ログインに失敗しました。';
+}
+
+function updateAuthUi() {
+  const userLabel = document.getElementById('authUserLabel');
+  const signOutButton = document.getElementById('btnSignOut');
+
+  if (currentUser?.email) {
+    userLabel.textContent = currentUser.email;
+    userLabel.style.display = 'inline-flex';
+    signOutButton.style.display = 'inline-flex';
+    return;
+  }
+
+  userLabel.textContent = '';
+  userLabel.style.display = 'none';
+  signOutButton.style.display = 'none';
+}
+
+function initFirebase(cfg) {
+  closeEventSubscription();
+  if (detachAuthListener) {
+    detachAuthListener();
+    detachAuthListener = null;
+  }
+  createRemoteReadyPromise();
+  createAuthReadyPromise();
+  db = null;
+  remoteStoreValue = null;
+  currentUser = null;
+  auth = null;
   try {
     if (firebase.apps.length) {
       firebase.app().delete().then(() => connectFirebase(cfg));
@@ -667,33 +831,75 @@ function connectFirebase(cfg) {
   try {
     firebase.initializeApp(cfg);
     db = firebase.database();
-    eventsRef = db.ref('events');
-    setSyncStatus('connecting', '接続中...');
+    auth = firebase.auth();
+    setSyncStatus('connecting', '認証待ち...');
 
-    eventsRef.on('value', snap => {
-      remoteStoreValue = snap.val();
-      markRemoteReady();
-      if (isAppUnlocked && sessionPassword) {
-        loadEventsFromStore().catch(error => {
-          console.error(error);
-          isAppUnlocked = false;
-          sessionPassword = '';
-          document.getElementById('lockError').textContent =
-            'パスワードが違うか、暗号化データを復号できませんでした。';
-          applyAppLock();
-          setSyncStatus('error', '復号エラー');
-        });
+    detachAuthListener = auth.onAuthStateChanged(user => {
+      currentUser = user;
+      markAuthReady();
+      updateAuthUi();
+      setAuthError('');
+
+      closeEventSubscription();
+      createRemoteReadyPromise();
+
+      if (!user) {
+        markRemoteReady();
+        events = [];
+        sessionPassword = '';
+        isAppUnlocked = false;
+        render();
+        setSyncStatus('', 'ログイン待ち');
+        applyAppLock();
         return;
       }
-      setSyncStatus('connected', '同期中');
-    }, err => {
+
+      eventsRef = db.ref('users').child(user.uid).child('events');
+      const handleValue = snap => {
+        remoteStoreValue = snap.val();
+        markRemoteReady();
+
+        if (isAppUnlocked && sessionPassword) {
+          loadEventsFromStore().catch(error => {
+            console.error(error);
+            isAppUnlocked = false;
+            sessionPassword = '';
+            document.getElementById('lockError').textContent =
+              'パスワードが違うか、暗号化データを復号できませんでした。';
+            applyAppLock();
+            setSyncStatus('error', '復号エラー');
+          });
+          return;
+        }
+
+        setSyncStatus('connected', '同期中');
+      };
+      const handleError = () => {
+        markRemoteReady();
+        setSyncStatus('error', '接続エラー');
+      };
+
+      eventsRef.on('value', handleValue, handleError);
+      detachEventsListener = () => eventsRef.off('value', handleValue);
+
+      setSyncStatus('connecting', '同期接続中...');
+      applyAppLock();
+    }, error => {
+      console.error(error);
+      markAuthReady();
       markRemoteReady();
-      setSyncStatus('error', '接続エラー');
+      setAuthError(formatAuthError(error));
+      setSyncStatus('error', '認証エラー');
+      applyAppLock();
     });
 
     document.getElementById('configBanner').style.display = 'none';
   } catch(e) {
     console.error(e);
+    db = null;
+    auth = null;
+    markAuthReady();
+    markRemoteReady();
     setSyncStatus('error', '設定エラー');
   }
 }
@@ -707,9 +913,26 @@ function setSyncStatus(state, text) {
 
 function applyAppLock() {
   const app = document.querySelector('.app');
+  const authOverlay = document.getElementById('authOverlay');
   const overlay = document.getElementById('lockOverlay');
+  const authEmail = document.getElementById('authEmail');
   const input = document.getElementById('lockPassword');
   const error = document.getElementById('lockError');
+  const needsAuth = Boolean(auth) && !currentUser;
+
+  if (needsAuth) {
+    closeModal();
+    closeConfig();
+    closeDayPopup();
+    app.classList.add('is-locked');
+    overlay.style.display = 'none';
+    authOverlay.style.display = 'flex';
+    error.textContent = '';
+    setTimeout(() => authEmail.focus(), 0);
+    return;
+  }
+
+  authOverlay.style.display = 'none';
 
   if (isAppUnlocked) {
     app.classList.remove('is-locked');
@@ -766,12 +989,73 @@ document.getElementById('lockPassword').addEventListener('keydown', e => {
 });
 
 function ensureStoreReady() {
-  if (eventsRef) {
-    return remoteReadyPromise;
+  if (auth) {
+    return authReadyPromise.then(() => {
+      if (!currentUser) {
+        throw new Error('先に Firebase へログインしてください。');
+      }
+      return remoteReadyPromise;
+    });
   }
 
   return Promise.resolve();
 }
+
+function getAuthFormValues() {
+  return {
+    email: document.getElementById('authEmail').value.trim(),
+    password: document.getElementById('authPassword').value,
+  };
+}
+
+async function loginWithEmailPassword() {
+  if (!auth) {
+    setAuthError('先に Firebase を設定してください。');
+    return;
+  }
+
+  const { email, password } = getAuthFormValues();
+  if (!email || !password) {
+    setAuthError('メールアドレスとパスワードを入力してください。');
+    return;
+  }
+
+  setAuthError('');
+  try {
+    await auth.signInWithEmailAndPassword(email, password);
+  } catch (error) {
+    setAuthError(formatAuthError(error));
+  }
+}
+
+async function registerWithEmailPassword() {
+  if (!auth) {
+    setAuthError('先に Firebase を設定してください。');
+    return;
+  }
+
+  const { email, password } = getAuthFormValues();
+  if (!email || !password) {
+    setAuthError('メールアドレスとパスワードを入力してください。');
+    return;
+  }
+
+  setAuthError('');
+  try {
+    await auth.createUserWithEmailAndPassword(email, password);
+  } catch (error) {
+    setAuthError(formatAuthError(error));
+  }
+}
+
+async function signOutUser() {
+  if (!auth) return;
+  await auth.signOut();
+}
+
+document.getElementById('authPassword').addEventListener('keydown', e => {
+  if (e.key === 'Enter') loginWithEmailPassword();
+});
 
 // ─── Date Parser ──────────────────────────────────────
 // Extracts all date patterns from arbitrary Japanese text
@@ -983,7 +1267,23 @@ function writeLocalStoreValue(value) {
 }
 
 function getCurrentStoreValue() {
-  return eventsRef ? remoteStoreValue : readLocalStoreValue();
+  return db ? remoteStoreValue : readLocalStoreValue();
+}
+
+async function readLegacyRemoteStoreValue() {
+  if (!db) return null;
+
+  try {
+    const snapshot = await db.ref('events').once('value');
+    const value = snapshot.val();
+    if (isEncryptedStoreValue(value) || extractLegacyEvents(value)) {
+      return value;
+    }
+  } catch (error) {
+    console.error(error);
+  }
+
+  return null;
 }
 
 async function deriveEncryptionKey(password, salt) {
@@ -1067,7 +1367,10 @@ async function decryptEventsPayload(payload) {
 async function persistEvents() {
   const payload = await encryptEventsPayload(events);
 
-  if (eventsRef) {
+  if (db) {
+    if (!eventsRef || !currentUser) {
+      throw new Error('先に Firebase へログインしてください。');
+    }
     remoteStoreValue = payload;
     await eventsRef.set(payload);
     return;
@@ -1078,20 +1381,32 @@ async function persistEvents() {
 
 async function loadEventsFromStore() {
   const storeValue = getCurrentStoreValue();
+  let sourceValue = storeValue;
 
-  if (!storeValue) {
+  if (eventsRef && !sourceValue) {
+    sourceValue = await readLegacyRemoteStoreValue();
+  }
+
+  if (eventsRef && !sourceValue) {
+    sourceValue = readLocalStoreValue();
+  }
+
+  if (!sourceValue) {
     events = [];
     render();
     return;
   }
 
-  if (isEncryptedStoreValue(storeValue)) {
-    events = await decryptEventsPayload(storeValue);
+  if (isEncryptedStoreValue(sourceValue)) {
+    events = await decryptEventsPayload(sourceValue);
+    if (eventsRef && sourceValue !== storeValue) {
+      await persistEvents();
+    }
     render();
     return;
   }
 
-  const legacyEvents = extractLegacyEvents(storeValue);
+  const legacyEvents = extractLegacyEvents(sourceValue);
   if (legacyEvents) {
     events = legacyEvents;
     await persistEvents();
@@ -1512,7 +1827,10 @@ function saveFirebaseConfig() {
     projectId: document.getElementById('cfgProjectId').value.trim(),
     appId: document.getElementById('cfgAppId').value.trim(),
   };
-  if (!cfg.apiKey || !cfg.databaseURL) { alert('API Key と Database URL は必須です'); return; }
+  if (!cfg.apiKey || !cfg.authDomain || !cfg.databaseURL) {
+    alert('API Key / Auth Domain / Database URL は必須です');
+    return;
+  }
   localStorage.setItem('fbConfig', JSON.stringify(cfg));
   closeConfig();
   initFirebase(cfg);
