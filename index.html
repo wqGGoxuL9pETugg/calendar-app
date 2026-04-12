@@ -479,6 +479,23 @@
   @media (max-width: 380px) {
     .calendar-grid { grid-template-columns: 1fr; }
   }
+  /* ── Month Note ── */
+  .month-note-btn {
+    background: none; border: none; cursor: pointer;
+    color: var(--text3); font-size: 13px; padding: 2px 5px;
+    border-radius: 5px; transition: color 0.15s, background 0.15s;
+    line-height: 1;
+  }
+  .month-note-btn:hover { color: var(--accent2); background: rgba(41,182,216,0.1); }
+  .month-note-btn.has-note { color: var(--amber); }
+  .month-note-modal { max-width: 420px; }
+  .month-note-display {
+    font-size: 12px; color: var(--amber);
+    padding: 6px 10px; background: rgba(255,179,71,0.08);
+    border-radius: 6px; margin-top: 6px; border: 1px solid rgba(255,179,71,0.2);
+    white-space: pre-wrap; line-height: 1.6;
+  }
+
 </style>
 </head>
 <body>
@@ -697,6 +714,24 @@
 </div>
 </div>
 
+<!-- Month Note Modal -->
+<div class="overlay" id="monthNoteModal" style="display:none">
+<div class="modal month-note-modal">
+  <div class="modal-header">
+    <h2 id="monthNoteTitle">月メモ</h2>
+    <button class="modal-close" onclick="closeMonthNote()">✕</button>
+  </div>
+  <div class="field">
+    <label>メモ</label>
+    <textarea id="monthNoteText" placeholder="この月のメモを入力..." style="min-height:120px"></textarea>
+  </div>
+  <div class="modal-footer">
+    <button class="btn-cancel" onclick="closeMonthNote()">キャンセル</button>
+    <button class="btn-save" onclick="saveMonthNote()">保存</button>
+  </div>
+</div>
+</div>
+
 <!-- Day Popup -->
 <div class="day-popup" id="dayPopup" style="display:none"></div>
 
@@ -708,6 +743,7 @@ let currentView = 'calendar';
 let calMode = 'single'; // 'single' | 'year'
 let events = [];
 let selectedColor = '#29b6d8';
+let monthNotes = {}; // { "2026-05": "メモ内容", ... }
 let db = null;
 let auth = null;
 let currentUser = null;
@@ -916,7 +952,6 @@ function applyAppLock() {
   const authOverlay = document.getElementById('authOverlay');
   const overlay = document.getElementById('lockOverlay');
   const authEmail = document.getElementById('authEmail');
-  const input = document.getElementById('lockPassword');
   const error = document.getElementById('lockError');
   const needsAuth = Boolean(auth) && !currentUser;
 
@@ -934,21 +969,12 @@ function applyAppLock() {
 
   authOverlay.style.display = 'none';
 
-  if (isAppUnlocked) {
-    app.classList.remove('is-locked');
-    overlay.style.display = 'none';
-    error.textContent = '';
-    return;
-  }
-
-  closeModal();
-  closeConfig();
-  closeDayPopup();
-  app.classList.add('is-locked');
-  overlay.style.display = 'flex';
-  input.value = '';
+  // 複合パスワード無効化：常にアンロック済みとして扱う
+  isAppUnlocked = true;
+  sessionPassword = 'no-lock';
+  app.classList.remove('is-locked');
+  overlay.style.display = 'none';
   error.textContent = '';
-  setTimeout(() => input.focus(), 0);
 }
 
 function unlockApp() {
@@ -1146,6 +1172,23 @@ function extractDates(text, year) {
     },
   );
 
+  // 5/10-12,18-22 → 5/10~12 と 5/18~22 を同月複数範囲として展開
+  s = s.replace(
+    /(\d{1,2})\/((\d{1,2}\s*[~\-]\s*\d{1,2})(\s*,\s*\d{1,2}\s*[~\-]\s*\d{1,2})+)/g,
+    (_, month, rangeList) => {
+      rangeList.split(/\s*,\s*/).forEach(rangePart => {
+        const rangMatch = rangePart.trim().match(/^(\d{1,2})\s*[~\-]\s*(\d{1,2})$/);
+        if (rangMatch) {
+          pushRange(
+            fmtDate(baseYear, Number(month), Number(rangMatch[1])),
+            fmtDate(baseYear, Number(month), Number(rangMatch[2])),
+          );
+        }
+      });
+      return ' ';
+    },
+  );
+
   s = s.replace(
     /(?:\d{4}[\/-])?(\d{1,2})\/(\d{1,2})\s*[~\-]\s*(\d{1,2})(?!\s*[\/月]|\d)/g,
     (_, m, d1, d2) => {
@@ -1312,60 +1355,15 @@ async function deriveEncryptionKey(password, salt) {
   );
 }
 
-async function encryptEventsPayload(items) {
-  if (!sessionPassword) {
-    throw new Error('復号用のパスワードを入力してください。');
-  }
-
-  const currentStore = getCurrentStoreValue();
-  const salt = isEncryptedStoreValue(currentStore) ? currentStore.salt : randomBase64(16);
-  const iv = randomBase64(12);
-  const key = await deriveEncryptionKey(sessionPassword, salt);
-  const plaintext = textEncoder.encode(
-    JSON.stringify({
-      version: 1,
-      events: items.map(normalizeEventRecord),
-    }),
-  );
-
-  const ciphertext = await crypto.subtle.encrypt(
-    {
-      name: 'AES-GCM',
-      iv: base64ToBytes(iv),
-    },
-    key,
-    plaintext,
-  );
-
-  return {
-    version: 1,
-    salt,
-    iv,
-    ciphertext: bytesToBase64(ciphertext),
+// 複合パスワード無効化：暗号化なし平文保存
+async function persistEvents() {
+  const payload = {
+    version: 2,
+    plain: true,
+    events: events.map(normalizeEventRecord),
+    notes: monthNotes,
     updatedAt: new Date().toISOString(),
   };
-}
-
-async function decryptEventsPayload(payload) {
-  try {
-    const key = await deriveEncryptionKey(sessionPassword, payload.salt);
-    const plaintext = await crypto.subtle.decrypt(
-      {
-        name: 'AES-GCM',
-        iv: base64ToBytes(payload.iv),
-      },
-      key,
-      base64ToBytes(payload.ciphertext),
-    );
-    const parsed = JSON.parse(textDecoder.decode(plaintext));
-    return Array.isArray(parsed?.events) ? parsed.events.map(normalizeEventRecord) : [];
-  } catch (error) {
-    throw new Error('パスワードが違うか、暗号化データを復号できませんでした。');
-  }
-}
-
-async function persistEvents() {
-  const payload = await encryptEventsPayload(events);
 
   if (db) {
     if (!eventsRef || !currentUser) {
@@ -1377,6 +1375,10 @@ async function persistEvents() {
   }
 
   writeLocalStoreValue(payload);
+}
+
+async function persistNotes() {
+  await persistEvents();
 }
 
 async function loadEventsFromStore() {
@@ -1393,15 +1395,23 @@ async function loadEventsFromStore() {
 
   if (!sourceValue) {
     events = [];
+    monthNotes = {};
     render();
     return;
   }
 
+  // 平文v2フォーマット
+  if (sourceValue && sourceValue.plain && Array.isArray(sourceValue.events)) {
+    events = sourceValue.events.map(normalizeEventRecord);
+    monthNotes = sourceValue.notes || {};
+    render();
+    return;
+  }
+
+  // 旧暗号化データは破棄して空で開始（パスワードなし移行）
   if (isEncryptedStoreValue(sourceValue)) {
-    events = await decryptEventsPayload(sourceValue);
-    if (eventsRef && sourceValue !== storeValue) {
-      await persistEvents();
-    }
+    events = [];
+    monthNotes = {};
     render();
     return;
   }
@@ -1409,12 +1419,14 @@ async function loadEventsFromStore() {
   const legacyEvents = extractLegacyEvents(sourceValue);
   if (legacyEvents) {
     events = legacyEvents;
+    monthNotes = {};
     await persistEvents();
     render();
     return;
   }
 
   events = [];
+  monthNotes = {};
   render();
 }
 
@@ -1547,6 +1559,33 @@ async function deleteEvent(id, skipConfirm = false) {
   closeDayPopup();
 }
 
+// ─── Month Notes ──────────────────────────────────────
+let editingNoteKey = '';
+
+function openMonthNote(yearMonth) {
+  editingNoteKey = yearMonth;
+  const [y, m] = yearMonth.split('-');
+  document.getElementById('monthNoteTitle').textContent = `${y}年${parseInt(m)}月のメモ`;
+  document.getElementById('monthNoteText').value = monthNotes[yearMonth] || '';
+  document.getElementById('monthNoteModal').style.display = 'flex';
+}
+
+function closeMonthNote() {
+  document.getElementById('monthNoteModal').style.display = 'none';
+}
+
+async function saveMonthNote() {
+  const text = document.getElementById('monthNoteText').value.trim();
+  if (text) {
+    monthNotes[editingNoteKey] = text;
+  } else {
+    delete monthNotes[editingNoteKey];
+  }
+  await persistNotes();
+  render();
+  closeMonthNote();
+}
+
 // ─── Render ───────────────────────────────────────────
 const MONTHS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
 const WDAYS = ['日','月','火','水','木','金','土'];
@@ -1572,6 +1611,13 @@ function renderCalendar() {
     const m = currentMonth;
     const first = new Date(currentYear, m, 1).getDay();
     const last = new Date(currentYear, m+1, 0).getDate();
+    const noteKeyBig = `${currentYear}-${String(m+1).padStart(2,'0')}`;
+    const noteTextBig = monthNotes[noteKeyBig] || '';
+    const noteHeaderBig = `<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 11px;background:var(--surface2);border-bottom:1px solid var(--border)">
+      <span style="font-size:11px;font-weight:600;letter-spacing:0.06em;color:var(--text2);text-transform:uppercase">${currentYear}年${m+1}月</span>
+      <button class="month-note-btn ${noteTextBig?'has-note':''}" onclick="openMonthNote('${noteKeyBig}')" title="月メモ">📝${noteTextBig?' ✓':''}</button>
+    </div>
+    ${noteTextBig?`<div class="month-note-display">${noteTextBig.replace(/</g,'&lt;')}</div>`:''}`;
     let html = `<div class="days-grid days-grid-big">`;
     WDAYS.forEach((d,i) => { html += `<div class="day-header day-header-big ${i===0?'sun':i===6?'sat':''}">${d}</div>`; });
     for (let i = 0; i < first; i++) html += `<div class="day-cell day-cell-big empty"></div>`;
@@ -1595,7 +1641,7 @@ function renderCalendar() {
     html += `</div>`;
     const card = document.createElement('div');
     card.className = 'month-card month-card-big';
-    card.innerHTML = html;
+    card.innerHTML = noteHeaderBig + html;
     grid.appendChild(card);
   } else {
     // ── Year grid view ──
@@ -1603,7 +1649,9 @@ function renderCalendar() {
     for (let m = 0; m < 12; m++) {
       const first = new Date(currentYear, m, 1).getDay();
       const last = new Date(currentYear, m+1, 0).getDate();
-      let html = `<div class="month-title">${MONTHS[m]}</div><div class="days-grid">`;
+      const noteKey = `${currentYear}-${String(m+1).padStart(2,'0')}`;
+      const noteText = monthNotes[noteKey] || '';
+      let html = `<div class="month-title" style="display:flex;align-items:center;justify-content:space-between">${MONTHS[m]}<button class="month-note-btn ${noteText?'has-note':''}" onclick="event.stopPropagation();openMonthNote('${noteKey}')" title="月メモ">📝</button></div><div class="days-grid">`;
       WDAYS.forEach((d,i) => { html += `<div class="day-header ${i===0?'sun':i===6?'sat':''}">${d}</div>`; });
       for (let i = 0; i < first; i++) html += `<div class="day-cell empty"></div>`;
       for (let d = 1; d <= last; d++) {
@@ -1645,7 +1693,10 @@ function renderList() {
 
   let html = '';
   Object.keys(byMonth).sort().forEach(m => {
-    html += `<div class="list-month-header">${parseInt(m)}月</div>`;
+    const nk = `${currentYear}-${m}`;
+    const nt = monthNotes[nk] || '';
+    html += `<div class="list-month-header" style="display:flex;align-items:center;justify-content:space-between">${parseInt(m)}月<button class="month-note-btn ${nt?'has-note':''}" onclick="openMonthNote('${nk}')" title="月メモ">📝${nt?' ✓':''}</button></div>`;
+    if (nt) html += `<div class="month-note-display">${nt.replace(/</g,'&lt;')}</div>`;
     byMonth[m].forEach(ev => {
       const datesStr = ev.dates.filter(d=>d.startsWith(String(currentYear)))
         .map(d=>{ const [,mm,dd]=d.split('-'); return `${parseInt(mm)}/${parseInt(dd)}`; }).join('  ');
