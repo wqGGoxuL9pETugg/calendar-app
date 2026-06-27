@@ -1,0 +1,77 @@
+:root {
+  --bg-top: #16181c;
+  --bg-bottom: #0d0f13;
+  --panel: #17191f;
+  --line: rgba(198, 161, 106, 0.12);
+  --text-strong: #f5f1e8;
+  --text-soft: #b4a997;
+  --accent: #b7935f;
+  --accent-strong: #d9be8f;
+  --danger: #ff8686;
+  --shadow-card:
+    0 36px 100px rgba(0, 0, 0, 0.42),
+    0 12px 28px rgba(0, 0, 0, 0.28);
+  --font-body:
+    'Yu Gothic UI', 'Hiragino Sans', 'BIZ UDPGothic', 'Segoe UI', sans-serif;
+  --font-heading:
+    'Yu Mincho', 'Hiragino Mincho ProN', 'Times New Roman', serif;
+
+  font-family: var(--font-body);
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--text-strong);
+  background:
+    radial-gradient(circle at top left, rgba(198, 161, 106, 0.08), transparent 24%),
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.04), transparent 18%),
+    linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(198, 161, 106, 0.08), transparent 20%),
+    radial-gradient(circle at bottom right, rgba(255, 255, 255, 0.03), transparent 14%),
+    linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.015), rgba(255, 255, 255, 0.015)),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.012) 1px, transparent 1px),
+    linear-gradient(rgba(255, 255, 255, 0.012) 1px, transparent 1px);
+  background-size: auto, 40px 40px, 40px 40px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.5), transparent 90%);
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: rgba(245, 241, 232, 0.36);
+}
+
+#root {
+  min-height: 100vh;
+}
