@@ -118,7 +118,34 @@
     background: rgba(255,255,255,0.03);
   }
 
-  main { flex: 1; padding: 16px 20px; }
+  /* ── Main + 空き日サイドバーの横並びレイアウト ── */
+  .body-row { display: flex; flex: 1; align-items: stretch; }
+  main { flex: 1; min-width: 0; padding: 16px 20px; }
+
+  .free-sidebar {
+    width: 260px; flex-shrink: 0;
+    border-left: 1px solid var(--border);
+    background: var(--surface);
+    padding: 16px;
+  }
+  .free-sidebar-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .free-sidebar-title {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--text2);
+  }
+  .free-sidebar-nav { display: flex; align-items: center; gap: 6px; }
+  .free-sidebar-nav button {
+    width: 22px; height: 22px; border-radius: 6px;
+    border: 1px solid var(--border2); background: transparent;
+    color: var(--text); cursor: pointer; font-size: 13px;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s;
+  }
+  .free-sidebar-nav button:hover { background: var(--surface2); }
+  .free-sidebar-month { font-size: 11px; font-weight: 600; color: var(--text2); min-width: 64px; text-align: center; }
 
   /* ── Calendar ── */
   .calendar-grid {
@@ -393,12 +420,12 @@
 
   /* ── Single month big view ── */
   .month-card-big { border-radius: var(--radius-lg); overflow: hidden; border: 1px solid var(--border); background: var(--surface); }
-  .days-grid-big { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; padding: 8px; }
+  .days-grid-big { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; padding: 8px; }
   .day-header-big { font-size: 12px; text-align: center; color: var(--text3); padding: 6px 0 4px; font-weight: 600; }
   .day-cell-big {
-    min-height: 80px; border-radius: 6px; padding: 4px 5px;
+    min-height: 80px; min-width: 0; border-radius: 6px; padding: 4px 5px;
     display: flex; flex-direction: column; align-items: flex-start;
-    cursor: pointer; transition: background 0.1s;
+    cursor: pointer; transition: background 0.1s; overflow: hidden;
   }
   .day-cell-big:hover:not(.empty) { background: var(--surface2); }
   .day-num-big { font-size: 13px; font-weight: 500; line-height: 1.6; color: var(--text); }
@@ -411,12 +438,12 @@
     font-size: 12px;
   }
   .day-cell-big.has-event { background: rgba(41,182,216,0.05); }
-  .event-label-list { width: 100%; margin-top: 2px; display: flex; flex-direction: column; gap: 2px; }
+  .event-label-list { width: 100%; min-width: 0; margin-top: 2px; display: flex; flex-direction: column; gap: 2px; }
   .event-label {
     font-size: 10px; font-weight: 600;
     padding: 1px 5px; border-radius: 3px;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    max-width: 100%;
+    max-width: 100%; min-width: 0; box-sizing: border-box;
   }
   .event-label-more { font-size: 9px; color: var(--text3); padding: 1px 4px; }
 
@@ -475,6 +502,16 @@
     .event-label { font-size: 9px; }
   }
 
+  /* 画面が狭い場合は空き日サイドバーを右側ではなく下に表示 */
+  @media (max-width: 860px) {
+    .body-row { flex-direction: column; }
+    .free-sidebar {
+      width: 100%;
+      border-left: none;
+      border-top: 1px solid var(--border);
+    }
+  }
+
   /* ── スマホ UI 修正 ── */
   @media (max-width: 600px) {
     /* ヘッダー: 2行に折り返す */
@@ -486,7 +523,7 @@
     /* 1行目: ロゴ・ナビ・タブ */
     .logo { order: 1; }
     .year-nav { order: 2; }
-    .tabs { order: 3; flex-grow: 1; justify-content: flex-end; }
+    .tabs { order: 3; flex-grow: 1; justify-content: flex-end; flex-wrap: wrap; row-gap: 4px; }
     /* 2行目: sync・ユーザー・ボタン */
     .sync-status { order: 4; margin-left: 0; width: 100%; justify-content: flex-start; }
     .auth-user { order: 5; font-size: 10px; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -533,13 +570,35 @@
   }
   /* ── Month Note ── */
   .month-note-btn {
-    background: none; border: none; cursor: pointer;
-    color: var(--text3); font-size: 13px; padding: 2px 5px;
-    border-radius: 5px; transition: color 0.15s, background 0.15s;
-    line-height: 1;
+    background: none; cursor: pointer;
+    color: var(--text3); font-size: 9px; font-weight: 700;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 3px 7px; border-radius: 5px;
+    border: 1px solid var(--border2);
+    transition: color 0.15s, background 0.15s, border-color 0.15s;
+    line-height: 1.3;
   }
-  .month-note-btn:hover { color: var(--accent2); background: rgba(41,182,216,0.1); }
-  .month-note-btn.has-note { color: var(--amber); }
+  .month-note-btn:hover { color: var(--accent2); background: rgba(41,182,216,0.1); border-color: var(--accent); }
+  .month-note-btn.has-note { color: var(--amber); border-color: rgba(255,179,71,0.4); }
+
+  /* ── Free days panel ── */
+  .free-days-summary {
+    font-size: 12px; color: var(--text2); font-weight: 600;
+    padding: 2px 0 12px;
+  }
+  .free-days-summary strong { color: var(--accent2); font-size: 14px; }
+  .free-days-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+  .free-day-chip {
+    display: flex; align-items: baseline; gap: 4px;
+    padding: 6px 10px; border-radius: var(--radius);
+    border: 1px solid var(--border2); background: var(--bg);
+    color: var(--text); cursor: pointer; font-size: 12px; font-weight: 700;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .free-day-chip:hover { background: var(--surface2); border-color: var(--accent); }
+  .free-day-chip.sun .free-day-num { color: var(--red); }
+  .free-day-chip.sat .free-day-num { color: var(--blue); }
+  .free-day-wd { font-size: 10px; color: var(--text3); font-weight: 500; }
   .month-note-modal { max-width: 420px; }
   .month-note-display {
     font-size: 12px; color: var(--amber);
@@ -629,26 +688,41 @@
     <button class="btn-add" onclick="openAdd()">＋ 追加</button>
   </header>
 
-  <!-- Main -->
-  <main>
-    <!-- Firebase config banner -->
-    <div class="config-banner" id="configBanner">
-      <strong>Firebase 設定が必要です</strong><br>
-      PCとスマホでデータを共有するにはFirebase Realtime Databaseの接続情報を設定してください。<br>
-      設定しない場合はブラウザのローカルストレージに保存されます。
-      <br><button class="btn-config" onclick="openConfig()">Firebase を設定する</button>
-    </div>
+  <!-- Main + 空き日サイドバー -->
+  <div class="body-row">
+    <main>
+      <!-- Firebase config banner -->
+      <div class="config-banner" id="configBanner">
+        <strong>Firebase 設定が必要です</strong><br>
+        PCとスマホでデータを共有するにはFirebase Realtime Databaseの接続情報を設定してください。<br>
+        設定しない場合はブラウザのローカルストレージに保存されます。
+        <br><button class="btn-config" onclick="openConfig()">Firebase を設定する</button>
+      </div>
 
-    <!-- Calendar -->
-    <div id="viewCalendar">
-      <div class="calendar-grid" id="calGrid"></div>
-    </div>
+      <!-- Calendar -->
+      <div id="viewCalendar">
+        <div class="calendar-grid" id="calGrid"></div>
+      </div>
 
-    <!-- List -->
-    <div id="viewList" style="display:none" class="list-view">
-      <div id="listContainer"></div>
-    </div>
-  </main>
+      <!-- List -->
+      <div id="viewList" style="display:none" class="list-view">
+        <div id="listContainer"></div>
+      </div>
+    </main>
+
+    <!-- 空き日サイドバー（常に表示） -->
+    <aside class="free-sidebar" id="freeSidebar">
+      <div class="free-sidebar-header">
+        <span class="free-sidebar-title">空き日</span>
+        <div class="free-sidebar-nav">
+          <button onclick="freeSidebarPrev()" aria-label="前の月">&#8249;</button>
+          <span class="free-sidebar-month" id="freeSidebarMonth"></span>
+          <button onclick="freeSidebarNext()" aria-label="次の月">&#8250;</button>
+        </div>
+      </div>
+      <div id="freeDaysContainer"></div>
+    </aside>
+  </div>
 </div>
 
 <!-- Add / Edit Modal -->
@@ -1692,6 +1766,41 @@ async function saveMonthNote() {
 const MONTHS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
 const WDAYS = ['日','月','火','水','木','金','土'];
 
+// 全角(漢字・かな・全角記号など)を2、半角を1としてだいたいの表示幅を計算
+function charWidth(ch) {
+  const c = ch.codePointAt(0);
+  if (
+    (c >= 0x1100 && c <= 0x115F) ||
+    (c >= 0x2E80 && c <= 0xA4CF) ||
+    (c >= 0xAC00 && c <= 0xD7A3) ||
+    (c >= 0xF900 && c <= 0xFAFF) ||
+    (c >= 0xFF00 && c <= 0xFF60) ||
+    (c >= 0xFFE0 && c <= 0xFFE6) ||
+    (c >= 0x3000 && c <= 0x303F) ||
+    (c >= 0x3040 && c <= 0x30FF)
+  ) return 2;
+  return 1;
+}
+
+// カレンダーの狭いマスに収まるようタイトルを短縮（全角約4文字＝幅8で切る）
+function truncateForCell(title, maxWidth = 8) {
+  if (!title) return '';
+  let total = 0;
+  for (const ch of title) total += charWidth(ch);
+  if (total <= maxWidth) return title;
+  let out = '', w = 0;
+  for (const ch of title) {
+    const cw = charWidth(ch);
+    if (w + cw > maxWidth - 2) break; // 「…」分の余白を残す
+    out += ch; w += cw;
+  }
+  return (out || title.slice(0,1)) + '…';
+}
+
+function escAttr(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+}
+
 function render() {
   if (calMode === 'single') {
     document.getElementById('yearLabel').textContent =
@@ -1701,6 +1810,7 @@ function render() {
   }
   renderCalendar();
   renderList();
+  renderFreeDays();
 }
 
 function renderCalendar() {
@@ -1717,7 +1827,7 @@ function renderCalendar() {
     const noteTextBig = monthNotes[noteKeyBig] || '';
     const noteHeaderBig = `<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 11px;background:var(--surface2);border-bottom:1px solid var(--border)">
       <span style="font-size:11px;font-weight:600;letter-spacing:0.06em;color:var(--text2);text-transform:uppercase">${currentYear}年${m+1}月</span>
-      <button class="month-note-btn ${noteTextBig?'has-note':''}" onclick="openMonthNote('${noteKeyBig}')" title="月メモ">📝${noteTextBig?' ✓':''}</button>
+      <button class="month-note-btn ${noteTextBig?'has-note':''}" onclick="openMonthNote('${noteKeyBig}')" title="月メモ">memo${noteTextBig?' ✓':''}</button>
     </div>
     ${noteTextBig?`<div class="month-note-display">${noteTextBig.replace(/</g,'&lt;')}</div>`:''}`;
     let html = `<div class="days-grid days-grid-big">`;
@@ -1733,7 +1843,7 @@ function renderCalendar() {
       if (evs.length) {
         html += `<div class="event-label-list">`;
         evs.slice(0,2).forEach(e => {
-          html += `<div class="event-label" style="background:${e.color||'#29b6d8'}22;color:${e.color||'#29b6d8'};border-left:2px solid ${e.color||'#29b6d8'}">${e.title}</div>`;
+          html += `<div class="event-label" title="${escAttr(e.title)}" style="background:${e.color||'#29b6d8'}22;color:${e.color||'#29b6d8'};border-left:2px solid ${e.color||'#29b6d8'}">${truncateForCell(e.title)}</div>`;
         });
         if (evs.length > 2) html += `<div class="event-label-more">+${evs.length-2}</div>`;
         html += `</div>`;
@@ -1753,7 +1863,7 @@ function renderCalendar() {
       const last = new Date(currentYear, m+1, 0).getDate();
       const noteKey = `${currentYear}-${String(m+1).padStart(2,'0')}`;
       const noteText = monthNotes[noteKey] || '';
-      let html = `<div class="month-title" style="display:flex;align-items:center;justify-content:space-between">${MONTHS[m]}<button class="month-note-btn ${noteText?'has-note':''}" onclick="event.stopPropagation();openMonthNote('${noteKey}')" title="月メモ">📝</button></div><div class="days-grid">`;
+      let html = `<div class="month-title" style="display:flex;align-items:center;justify-content:space-between">${MONTHS[m]}<button class="month-note-btn ${noteText?'has-note':''}" onclick="event.stopPropagation();openMonthNote('${noteKey}')" title="月メモ">memo${noteText?' ✓':''}</button></div><div class="days-grid">`;
       WDAYS.forEach((d,i) => { html += `<div class="day-header ${i===0?'sun':i===6?'sat':''}">${d}</div>`; });
       for (let i = 0; i < first; i++) html += `<div class="day-cell empty"></div>`;
       for (let d = 1; d <= last; d++) {
@@ -1797,7 +1907,7 @@ function renderList() {
   Object.keys(byMonth).sort().forEach(m => {
     const nk = `${currentYear}-${m}`;
     const nt = monthNotes[nk] || '';
-    html += `<div class="list-month-header" style="display:flex;align-items:center;justify-content:space-between">${parseInt(m)}月<button class="month-note-btn ${nt?'has-note':''}" onclick="openMonthNote('${nk}')" title="月メモ">📝${nt?' ✓':''}</button></div>`;
+    html += `<div class="list-month-header" style="display:flex;align-items:center;justify-content:space-between">${parseInt(m)}月<button class="month-note-btn ${nt?'has-note':''}" onclick="openMonthNote('${nk}')" title="月メモ">memo${nt?' ✓':''}</button></div>`;
     if (nt) html += `<div class="month-note-display">${nt.replace(/</g,'&lt;')}</div>`;
     byMonth[m].forEach(ev => {
       const datesStr = ev.dates.filter(d=>d.startsWith(String(currentYear)))
@@ -1816,6 +1926,37 @@ function renderList() {
       </div>`;
     });
   });
+  el.innerHTML = html;
+}
+
+// ─── Free days (no events in the displayed month) ─────
+function renderFreeDays() {
+  const el = document.getElementById('freeDaysContainer');
+  const monthLabelEl = document.getElementById('freeSidebarMonth');
+  if (!el) return;
+  const y = currentYear, m = currentMonth; // m: 0-indexed
+  const last = new Date(y, m+1, 0).getDate();
+  if (monthLabelEl) monthLabelEl.textContent = `${y}年${m+1}月`;
+  const freeDays = [];
+  for (let d = 1; d <= last; d++) {
+    const ds = fmtDate(y, m+1, d);
+    if (getEventsForDate(ds).length === 0) freeDays.push(d);
+  }
+  let html = `<div class="free-days-summary">予定の無い日 <strong>${freeDays.length}</strong> / ${last}日</div>`;
+  if (!freeDays.length) {
+    el.innerHTML = html + `<div class="no-events">この月は全日に予定があります</div>`;
+    return;
+  }
+  html += `<div class="free-days-grid">`;
+  freeDays.forEach(d => {
+    const ds = fmtDate(y, m+1, d);
+    const dow = new Date(y, m, d).getDay();
+    const cls = dow === 0 ? 'sun' : dow === 6 ? 'sat' : '';
+    html += `<button class="free-day-chip ${cls}" onclick="quickAdd('${ds}')" title="この日に予定を追加">
+      <span class="free-day-num">${m+1}/${d}</span><span class="free-day-wd">(${WDAYS[dow]})</span>
+    </button>`;
+  });
+  html += `</div>`;
   el.innerHTML = html;
 }
 
@@ -1939,6 +2080,18 @@ document.querySelectorAll('.tab').forEach(tab => {
     render();
   });
 });
+
+// ─── 空き日サイドバー専用の月送り（メイン表示のタブ/モードに関係なく独立して動く） ──
+function freeSidebarPrev() {
+  currentMonth--;
+  if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+  render();
+}
+function freeSidebarNext() {
+  currentMonth++;
+  if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+  render();
+}
 
 document.getElementById('btnPrev').onclick = () => {
   if (calMode === 'single') {
