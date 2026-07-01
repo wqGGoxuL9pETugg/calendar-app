@@ -528,7 +528,8 @@
     .sync-status { order: 4; margin-left: 0; width: 100%; justify-content: flex-start; }
     .auth-user { order: 5; font-size: 10px; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     #btnSignOut { order: 6; }
-    .btn-add { order: 7; margin-left: auto; }
+    .btn-export { order: 7; }
+    .btn-add { order: 8; margin-left: auto; }
 
     /* タブをコンパクトに */
     .tab { padding: 5px 9px; font-size: 11px; }
@@ -606,6 +607,47 @@
     border-radius: 6px; margin-top: 6px; border: 1px solid rgba(255,179,71,0.2);
     white-space: pre-wrap; line-height: 1.6;
   }
+
+  /* ── Export button ── */
+  .btn-export {
+    padding: 6px 12px; border-radius: 7px;
+    border: 1px solid var(--border2); background: transparent;
+    color: var(--text2); font-size: 12px; cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .btn-export:hover { background: var(--surface2); color: var(--text); border-color: var(--accent); }
+
+  /* ── Export modal ── */
+  .export-modal { max-width: 520px; }
+  .export-controls { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+  .export-control-row { display: flex; align-items: center; gap: 10px; }
+  .export-label { font-size: 11px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; min-width: 80px; flex-shrink: 0; }
+  .export-select {
+    flex: 1; background: var(--bg); border: 1px solid var(--border2); border-radius: 7px;
+    color: var(--text); font-size: 13px; padding: 6px 10px; font-family: inherit;
+  }
+  .export-select:focus { outline: none; border-color: var(--accent); }
+  .export-fmt-tabs { display: flex; gap: 4px; }
+  .export-fmt-tab {
+    padding: 5px 14px; border-radius: 6px; border: 1px solid var(--border); background: transparent;
+    color: var(--text2); cursor: pointer; font-size: 12px; transition: all 0.15s;
+  }
+  .export-fmt-tab.active { background: var(--accent); border-color: var(--accent); color: white; }
+  .export-output {
+    width: 100%; min-height: 220px; background: var(--bg);
+    border: 1px solid var(--border2); border-radius: 7px;
+    color: var(--text); font-size: 13px; padding: 10px 12px;
+    font-family: 'Menlo', 'Consolas', monospace; resize: vertical;
+    line-height: 1.7; margin-bottom: 2px;
+  }
+  .export-output:focus { outline: none; border-color: var(--accent); }
+  .btn-export-copy {
+    padding: 8px 16px; border-radius: 7px; border: 1px solid var(--border2);
+    background: transparent; color: var(--text2); cursor: pointer; font-size: 13px;
+    transition: background 0.15s, color 0.15s;
+  }
+  .btn-export-copy:hover { background: var(--surface2); color: var(--text); }
+  .btn-export-copy.copied { color: var(--green); border-color: var(--green); }
 
 </style>
 </head>
@@ -685,6 +727,7 @@
     </div>
     <span class="auth-user" id="authUserLabel"></span>
     <button class="btn-auth" id="btnSignOut" onclick="signOutUser()" style="display:none">ログアウト</button>
+    <button class="btn-export" onclick="openExport()">⬇ 出力</button>
     <button class="btn-add" onclick="openAdd()">＋ 追加</button>
   </header>
 
@@ -860,6 +903,38 @@
   <div class="modal-footer">
     <button class="btn-cancel" onclick="closeMonthNote()">キャンセル</button>
     <button class="btn-save" onclick="saveMonthNote()">保存</button>
+  </div>
+</div>
+</div>
+
+<!-- Export Modal -->
+<div class="overlay" id="exportModal" style="display:none">
+<div class="modal export-modal">
+  <div class="modal-header">
+    <h2>出力</h2>
+    <button class="modal-close" onclick="closeExport()">✕</button>
+  </div>
+
+  <div class="export-controls">
+    <div class="export-control-row">
+      <label class="export-label">対象イベント</label>
+      <select id="exportEventSelect" class="export-select" onchange="refreshExport()"></select>
+    </div>
+    <div class="export-control-row">
+      <label class="export-label">フォーマット</label>
+      <div class="export-fmt-tabs">
+        <button class="export-fmt-tab active" data-fmt="text" onclick="setExportFmt('text',this)">テキスト</button>
+        <button class="export-fmt-tab" data-fmt="csv" onclick="setExportFmt('csv',this)">CSV</button>
+      </div>
+    </div>
+  </div>
+
+  <textarea id="exportOutput" class="export-output" readonly spellcheck="false"></textarea>
+
+  <div class="modal-footer">
+    <button class="btn-cancel" onclick="closeExport()">閉じる</button>
+    <button class="btn-export-copy" onclick="copyExport()">コピー</button>
+    <button class="btn-save" onclick="downloadExport()">ダウンロード</button>
   </div>
 </div>
 </div>
@@ -2111,6 +2186,168 @@ document.getElementById('btnNext').onclick = () => {
   }
   render();
 };
+
+// ─── Export ───────────────────────────────────────────
+let exportFmt = 'text';
+
+const WDAYS_FULL = ['日','月','火','水','木','金','土'];
+
+function fmtDateLabel(ds) {
+  // ds: "2026-07-08" → "7/8(水)"
+  const parts = parseDateKey(ds);
+  if (!parts) return ds;
+  const dow = new Date(parts.year, parts.month - 1, parts.day).getDay();
+  return `${parts.month}/${parts.day}(${WDAYS_FULL[dow]})`;
+}
+
+function buildExportText(evList) {
+  if (!evList.length) return '';
+  if (evList.length === 1) {
+    // single event: just dates, like the example
+    return evList[0].dates.map(fmtDateLabel).join('\n');
+  }
+  // multiple events: group by event with header
+  return evList.map(ev => {
+    const header = `【${ev.title}】${ev.note ? '　' + ev.note : ''}`;
+    const dates = ev.dates.map(fmtDateLabel).join('\n');
+    return `${header}\n${dates}`;
+  }).join('\n\n');
+}
+
+function buildExportCsv(evList) {
+  const BOM = '\uFEFF'; // Excel UTF-8 BOM
+  const rows = [['タイトル', '日付', '曜日', 'メモ']];
+  evList.forEach(ev => {
+    ev.dates.forEach(ds => {
+      const parts = parseDateKey(ds);
+      if (!parts) return;
+      const dow = new Date(parts.year, parts.month - 1, parts.day).getDay();
+      rows.push([
+        ev.title,
+        `${parts.year}/${parts.month}/${parts.day}`,
+        WDAYS_FULL[dow],
+        ev.note || '',
+      ]);
+    });
+  });
+  return BOM + rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+}
+
+function getExportEventList() {
+  const sel = document.getElementById('exportEventSelect');
+  const val = sel ? sel.value : '__all__';
+  if (val === '__free__') return null; // 空き日は別処理
+  if (val === '__all__') return [...events].sort((a,b) => (a.dates[0]||'').localeCompare(b.dates[0]||''));
+  const ev = events.find(e => e.id === val);
+  return ev ? [ev] : [];
+}
+
+function buildFreeDaysList() {
+  const y = currentYear, m = currentMonth;
+  const last = new Date(y, m + 1, 0).getDate();
+  const free = [];
+  for (let d = 1; d <= last; d++) {
+    const ds = fmtDate(y, m + 1, d);
+    if (getEventsForDate(ds).length === 0) free.push(ds);
+  }
+  return free;
+}
+
+function buildFreeDaysText(freeDays) {
+  return freeDays.map(fmtDateLabel).join('\n');
+}
+
+function buildFreeDaysCsv(freeDays) {
+  const BOM = '\uFEFF';
+  const rows = [['日付', '曜日']];
+  freeDays.forEach(ds => {
+    const parts = parseDateKey(ds);
+    if (!parts) return;
+    const dow = new Date(parts.year, parts.month - 1, parts.day).getDay();
+    rows.push([`${parts.year}/${parts.month}/${parts.day}`, WDAYS_FULL[dow]]);
+  });
+  return BOM + rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+}
+
+function refreshExport() {
+  const out = document.getElementById('exportOutput');
+  if (!out) return;
+  const evList = getExportEventList();
+  if (evList === null) {
+    // 空き日モード
+    const freeDays = buildFreeDaysList();
+    out.value = exportFmt === 'csv' ? buildFreeDaysCsv(freeDays) : buildFreeDaysText(freeDays);
+  } else {
+    out.value = exportFmt === 'csv' ? buildExportCsv(evList) : buildExportText(evList);
+  }
+}
+
+function setExportFmt(fmt, el) {
+  exportFmt = fmt;
+  document.querySelectorAll('.export-fmt-tab').forEach(t => t.classList.toggle('active', t === el));
+  refreshExport();
+}
+
+function openExport() {
+  const sel = document.getElementById('exportEventSelect');
+  // build event dropdown
+  const sorted = [...events].sort((a,b) => (a.dates[0]||'').localeCompare(b.dates[0]||''));
+  const freeCnt = buildFreeDaysList().length;
+  let opts = `<option value="__free__">📅 空き日（${currentYear}年${currentMonth+1}月・${freeCnt}日）</option>`;
+  opts += `<option value="__all__" ${sorted.length ? '' : 'disabled'}>── 予定すべて（${sorted.length}件）──</option>`;
+  sorted.forEach(ev => {
+    const firstDate = ev.dates[0] ? fmtDateLabel(ev.dates[0]) : '';
+    const label = `${ev.title}${firstDate ? '　' + firstDate + '〜' : ''}`;
+    opts += `<option value="${ev.id}">${label}</option>`;
+  });
+  sel.innerHTML = opts;
+  // reset format tabs
+  exportFmt = 'text';
+  document.querySelectorAll('.export-fmt-tab').forEach(t => t.classList.toggle('active', t.dataset.fmt === 'text'));
+  refreshExport();
+  document.getElementById('exportModal').style.display = 'flex';
+}
+
+function closeExport() {
+  document.getElementById('exportModal').style.display = 'none';
+}
+
+async function copyExport() {
+  const text = document.getElementById('exportOutput').value;
+  const btn = document.querySelector('.btn-export-copy');
+  try {
+    await navigator.clipboard.writeText(text);
+    btn.textContent = '✓ コピー済み';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'コピー'; btn.classList.remove('copied'); }, 1800);
+  } catch {
+    document.getElementById('exportOutput').select();
+    document.execCommand('copy');
+  }
+}
+
+function downloadExport() {
+  const text = document.getElementById('exportOutput').value;
+  const isCsv = exportFmt === 'csv';
+  const mimeType = isCsv ? 'text/csv;charset=utf-8;' : 'text/plain;charset=utf-8;';
+  const ext = isCsv ? 'csv' : 'txt';
+  const sel = document.getElementById('exportEventSelect');
+  const evId = sel ? sel.value : '__all__';
+  let evName;
+  if (evId === '__free__') {
+    evName = `空き日_${currentYear}年${currentMonth+1}月`;
+  } else if (evId === '__all__') {
+    evName = 'TORIMA';
+  } else {
+    evName = events.find(e => e.id === evId)?.title || 'TORIMA';
+  }
+  const filename = `${evName}_${new Date().toISOString().slice(0,10)}.${ext}`;
+  const blob = new Blob([text], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
 // ─── Firebase Config Modal ────────────────────────────
 function openConfig() {
