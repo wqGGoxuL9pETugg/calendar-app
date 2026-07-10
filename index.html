@@ -146,6 +146,24 @@
   }
   .free-sidebar-nav button:hover { background: var(--surface2); }
   .free-sidebar-month { font-size: 11px; font-weight: 600; color: var(--text2); min-width: 64px; text-align: center; }
+  .sidebar-tabs { display: flex; gap: 4px; margin-bottom: 12px; }
+  .sidebar-tab {
+    flex: 1; padding: 5px 8px; border-radius: 6px;
+    border: 1px solid var(--border); background: transparent; color: var(--text2);
+    cursor: pointer; font-size: 11px; font-weight: 600;
+  }
+  .sidebar-tab.active { background: var(--accent); border-color: var(--accent); color: white; }
+  .task-list { display: flex; flex-direction: column; gap: 8px; }
+  .task-card { padding: 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); }
+  .task-card-head { display: flex; gap: 7px; align-items: flex-start; margin-bottom: 8px; }
+  .task-date { color: var(--accent2); font-size: 11px; font-weight: 700; white-space: nowrap; }
+  .task-event-title { font-size: 12px; font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .task-countdown { margin-top: 2px; color: var(--text3); font-size: 10px; }
+  .task-check { display: flex; align-items: center; gap: 7px; padding: 4px 0; color: var(--text2); cursor: pointer; font-size: 12px; }
+  .task-check input { accent-color: var(--accent); }
+  .task-check.done { color: var(--text3); text-decoration: line-through; }
+  .label-badge { display: inline-flex; align-items: center; margin-top: 5px; padding: 2px 6px; border-radius: 999px; background: rgba(41,182,216,0.14); border: 1px solid rgba(41,182,216,0.26); color: var(--accent2); font-size: 10px; font-weight: 700; }
+  .label-badge.table { background: rgba(240,98,146,0.14); border-color: rgba(240,98,146,0.3); color: var(--pink); }
 
   /* ── Calendar ── */
   .calendar-grid {
@@ -755,8 +773,12 @@
 
     <!-- 空き日サイドバー（常に表示） -->
     <aside class="free-sidebar" id="freeSidebar">
+      <div class="sidebar-tabs" role="tablist" aria-label="サイドバー表示">
+        <button class="sidebar-tab active" id="sidebarFreeTab" type="button" onclick="setSidebarMode('free')">空き日</button>
+        <button class="sidebar-tab" id="sidebarTaskTab" type="button" onclick="setSidebarMode('tasks')">タスク</button>
+      </div>
       <div class="free-sidebar-header">
-        <span class="free-sidebar-title">空き日</span>
+        <span class="free-sidebar-title" id="freeSidebarTitle">空き日</span>
         <div class="free-sidebar-nav">
           <button onclick="freeSidebarPrev()" aria-label="前の月">&#8249;</button>
           <span class="free-sidebar-month" id="freeSidebarMonth"></span>
@@ -764,6 +786,7 @@
         </div>
       </div>
       <div id="freeDaysContainer"></div>
+      <div id="taskListContainer" style="display:none"></div>
     </aside>
   </div>
 </div>
@@ -810,6 +833,13 @@
   <div class="field">
     <label>メモ（任意）</label>
     <input type="text" id="evNote" placeholder="メモを入力">
+  </div>
+
+  <div class="field">
+    <label>ラベル（任意）</label>
+    <input type="text" id="evLabel" list="labelOptions" placeholder="例：旅行、予約、卓">
+    <datalist id="labelOptions"></datalist>
+    <div class="field-hint">自由に追加できます。「卓」にするとCS・立ち絵のタスクが作成されます。</div>
   </div>
 
   <div class="field">
@@ -951,6 +981,7 @@ let calMode = 'single'; // 'single' | 'year'
 let events = [];
 let selectedColor = '#29b6d8';
 let monthNotes = {}; // { "2026-05": "メモ内容", ... }
+let sidebarMode = localStorage.getItem('torimaSidebarMode') === 'tasks' ? 'tasks' : 'free';
 let db = null;
 let auth = null;
 let currentUser = null;
@@ -1450,11 +1481,35 @@ function fmtDate(y,m,d) {
   return `${year}-${pad2(month)}-${pad2(day)}`;
 }
 
+const TABLE_LABEL = '卓';
+const DEFAULT_LABELS = ['旅行', '予約', TABLE_LABEL];
+const TABLE_TASKS = [
+  { id: 'cs', title: 'CS' },
+  { id: 'character-art', title: '立ち絵' },
+];
+
+function normalizeTasks(value, isTable) {
+  const existing = Array.isArray(value) ? value.filter(task => task && task.id) : [];
+  if (!isTable) return existing;
+  return TABLE_TASKS.map(template => {
+    const saved = existing.find(task => task.id === template.id) || {};
+    return {
+      id: template.id,
+      title: template.title,
+      completed: Boolean(saved.completed),
+      completedAt: saved.completed ? (saved.completedAt || null) : null,
+    };
+  });
+}
+
 function normalizeEventRecord(ev) {
+  const label = String(ev?.label || '').trim();
   return {
     ...ev,
     dates: uniqueSortedDates(Array.isArray(ev?.dates) ? ev.dates : []),
     note: ev?.note || '',
+    label,
+    tasks: normalizeTasks(ev?.tasks, label === TABLE_LABEL),
     color: ev?.color || '#29b6d8',
   };
 }
@@ -1583,7 +1638,7 @@ async function encryptEventsPayload(items) {
   const key = await deriveEncryptionKey(sessionPassword, salt);
   const plaintext = textEncoder.encode(
     JSON.stringify({
-      version: 2,
+      version: 3,
       events: items.map(normalizeEventRecord),
       notes: monthNotes,
     }),
@@ -1596,7 +1651,7 @@ async function encryptEventsPayload(items) {
   );
 
   return {
-    version: 2,
+    version: 3,
     salt,
     iv,
     ciphertext: bytesToBase64(ciphertext),
@@ -1777,6 +1832,7 @@ async function saveEvent() {
   const title = document.getElementById('evTitle').value.trim();
   const raw = document.getElementById('evDates').value;
   const note = document.getElementById('evNote').value.trim();
+  const label = document.getElementById('evLabel').value.trim();
   const editId = document.getElementById('editId').value;
 
   if (!title) {
@@ -1790,11 +1846,14 @@ async function saveEvent() {
     return;
   }
 
+  const existing = events.find(item => item.id === editId);
   const ev = normalizeEventRecord({
     id: editId || ('ev_' + Date.now()),
     title,
     dates,
     note,
+    label,
+    tasks: existing?.tasks || [],
     color: selectedColor,
   });
 
@@ -1886,6 +1945,9 @@ function render() {
   renderCalendar();
   renderList();
   renderFreeDays();
+  renderLabelOptions();
+  renderSidebarMode();
+  renderTaskList();
 }
 
 function renderCalendar() {
@@ -1918,7 +1980,8 @@ function renderCalendar() {
       if (evs.length) {
         html += `<div class="event-label-list">`;
         evs.slice(0,2).forEach(e => {
-          html += `<div class="event-label" title="${escAttr(e.title)}" style="background:${e.color||'#29b6d8'}22;color:${e.color||'#29b6d8'};border-left:2px solid ${e.color||'#29b6d8'}">${truncateForCell(e.title)}</div>`;
+          const cellTitle = e.label ? `${e.label}・${e.title}` : e.title;
+          html += `<div class="event-label" title="${escAttr(cellTitle)}" style="background:${e.color||'#29b6d8'}22;color:${e.color||'#29b6d8'};border-left:2px solid ${e.color||'#29b6d8'}">${escText(truncateForCell(cellTitle))}</div>`;
         });
         if (evs.length > 2) html += `<div class="event-label-more">+${evs.length-2}</div>`;
         html += `</div>`;
@@ -1990,8 +2053,9 @@ function renderList() {
       html += `<div class="event-row">
         <div class="color-bar" style="background:${ev.color||'#29b6d8'}"></div>
         <div class="event-body">
-          <div class="event-title-text">${ev.title}</div>
+          <div class="event-title-text">${escText(ev.title)}</div>
           <div class="event-dates-text">${datesStr}</div>
+          ${labelBadge(ev.label)}
           ${ev.note?`<div class="event-note-text">${ev.note}</div>`:''}
         </div>
         <div class="ev-btns">
@@ -2035,6 +2099,118 @@ function renderFreeDays() {
   el.innerHTML = html;
 }
 
+function renderLabelOptions() {
+  const datalist = document.getElementById('labelOptions');
+  if (!datalist) return;
+  const labels = [...new Set(events.map(ev => ev.label).filter(Boolean).concat(DEFAULT_LABELS))]
+    .sort((a, b) => a.localeCompare(b, 'ja'));
+  datalist.innerHTML = labels.map(label => `<option value="${escAttr(label)}"></option>`).join('');
+}
+
+function labelBadge(label) {
+  if (!label) return '';
+  const cls = label === TABLE_LABEL ? ' table' : '';
+  return `<span class="label-badge${cls}">${escText(label)}</span>`;
+}
+
+function escText(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function dateKeyToday() {
+  const now = new Date();
+  return fmtDate(now.getFullYear(), now.getMonth() + 1, now.getDate());
+}
+
+function addMonthsToToday(months) {
+  const now = new Date();
+  const end = new Date(now.getFullYear(), now.getMonth() + months, now.getDate());
+  return fmtDate(end.getFullYear(), end.getMonth() + 1, end.getDate());
+}
+
+function getUpcomingTableEvents() {
+  const today = dateKeyToday();
+  const end = addMonthsToToday(2);
+  return events
+    .filter(ev => ev.label === TABLE_LABEL)
+    .map(ev => ({ ...ev, taskDate: (ev.dates || []).find(date => date >= today) }))
+    .filter(ev => ev.taskDate && ev.taskDate <= end)
+    .sort((a, b) => a.taskDate.localeCompare(b.taskDate));
+}
+
+function formatTaskDate(dateKey) {
+  const [year, month, day] = dateKey.split('-').map(Number);
+  const weekday = WDAYS[new Date(year, month - 1, day).getDay()];
+  return `${month}/${day}（${weekday}）`;
+}
+
+function daysUntil(dateKey) {
+  const [year, month, day] = dateKey.split('-').map(Number);
+  const target = new Date(year, month - 1, day);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diff = Math.round((target - today) / 86400000);
+  return diff === 0 ? '今日' : `あと${diff}日`;
+}
+
+function renderTaskList() {
+  const el = document.getElementById('taskListContainer');
+  if (!el) return;
+  const items = getUpcomingTableEvents();
+  if (!items.length) {
+    el.innerHTML = `<div class="no-events">直近2カ月の卓予定はありません</div>`;
+    return;
+  }
+  el.innerHTML = `<div class="task-list">${items.map(ev => {
+    const tasks = normalizeTasks(ev.tasks, true);
+    return `<section class="task-card">
+      <div class="task-card-head">
+        <div>
+          <div class="task-date">${formatTaskDate(ev.taskDate)}</div>
+          <div class="task-countdown">${daysUntil(ev.taskDate)}</div>
+        </div>
+        <div class="task-event-title" title="${escAttr(ev.title)}">${escText(ev.title)}</div>
+      </div>
+      ${tasks.map(task => `<label class="task-check${task.completed ? ' done' : ''}">
+        <input type="checkbox" ${task.completed ? 'checked' : ''} onchange="toggleTableTask('${ev.id}','${task.id}',this.checked)">
+        <span>${task.title}</span>
+      </label>`).join('')}
+    </section>`;
+  }).join('')}</div>`;
+}
+
+function renderSidebarMode() {
+  const isTasks = sidebarMode === 'tasks';
+  const freeContainer = document.getElementById('freeDaysContainer');
+  const taskContainer = document.getElementById('taskListContainer');
+  const nav = document.querySelector('.free-sidebar-nav');
+  document.getElementById('sidebarFreeTab').classList.toggle('active', !isTasks);
+  document.getElementById('sidebarTaskTab').classList.toggle('active', isTasks);
+  document.getElementById('freeSidebarTitle').textContent = isTasks ? '卓タスク' : '空き日';
+  freeContainer.style.display = isTasks ? 'none' : '';
+  taskContainer.style.display = isTasks ? '' : 'none';
+  nav.style.display = isTasks ? 'none' : '';
+}
+
+function setSidebarMode(mode) {
+  sidebarMode = mode === 'tasks' ? 'tasks' : 'free';
+  localStorage.setItem('torimaSidebarMode', sidebarMode);
+  renderSidebarMode();
+}
+
+async function toggleTableTask(eventId, taskId, completed) {
+  const event = events.find(item => item.id === eventId);
+  if (!event) return;
+  const tasks = normalizeTasks(event.tasks, true).map(task => task.id === taskId
+    ? { ...task, completed, completedAt: completed ? new Date().toISOString() : null }
+    : task);
+  await upsertEvent({ ...event, tasks });
+}
+
 // ─── Day Popup ────────────────────────────────────────
 function showDayPopup(ds, e) {
   e.stopPropagation();
@@ -2048,7 +2224,8 @@ function showDayPopup(ds, e) {
     html += `<div class="popup-ev">
       <div class="pip" style="background:${ev.color||'#29b6d8'};width:6px;height:6px;flex-shrink:0"></div>
       <div style="flex:1">
-        <div class="popup-ev-title">${ev.title}</div>
+        <div class="popup-ev-title">${escText(ev.title)}</div>
+        ${labelBadge(ev.label)}
         ${ev.note?`<div class="popup-ev-note">${ev.note}</div>`:''}
         ${ev.dates && ev.dates.length > 1 ? `
           <div class="popup-mini-actions">
@@ -2089,6 +2266,7 @@ function openAdd() {
   document.getElementById('evTitle').value = '';
   document.getElementById('evDates').value = '';
   document.getElementById('evNote').value = '';
+  document.getElementById('evLabel').value = '';
   document.getElementById('modalTitle').textContent = 'イベントを追加';
   updateParsePreview();
   setColor(document.querySelector('.cswatch'));
@@ -2103,6 +2281,7 @@ function openEdit(id) {
   document.getElementById('evTitle').value = ev.title;
   document.getElementById('evDates').value = (ev.dates||[]).join('\n');
   document.getElementById('evNote').value = ev.note || '';
+  document.getElementById('evLabel').value = ev.label || '';
   document.getElementById('modalTitle').textContent = 'イベントを編集';
   updateParsePreview();
   const sw = document.querySelector(`.cswatch[data-c="${ev.color||'#29b6d8'}"]`);
@@ -2119,6 +2298,7 @@ function quickAdd(ds) {
   document.getElementById('evTitle').value = '';
   document.getElementById('evDates').value = `${parseInt(m)}/${parseInt(d)}`;
   document.getElementById('evNote').value = '';
+  document.getElementById('evLabel').value = '';
   document.getElementById('modalTitle').textContent = 'イベントを追加';
   updateParsePreview();
   setColor(document.querySelector('.cswatch'));
