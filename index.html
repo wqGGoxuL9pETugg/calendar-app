@@ -843,6 +843,12 @@
   </div>
 
   <div class="field">
+    <label>タスク（任意）</label>
+    <textarea id="evManualTasks" placeholder="1行に1つずつ入力&#10;例：宿を予約する&#10;参加者に連絡する"></textarea>
+    <div class="field-hint">ラベルがなくても追加できます。卓ではCS・立ち絵に加えて表示されます。</div>
+  </div>
+
+  <div class="field">
     <label>カラー</label>
     <div class="color-grid" id="colorGrid">
       <div class="cswatch active" style="background:#29b6d8" data-c="#29b6d8"></div>
@@ -1488,16 +1494,59 @@ const TABLE_TASKS = [
   { id: 'character-art', title: '立ち絵' },
 ];
 
+function normalizeTaskRecord(task) {
+  const isAuto = task?.source === 'auto' || TABLE_TASKS.some(template => template.id === task?.id);
+  return {
+    id: String(task?.id || ''),
+    title: String(task?.title || '').trim(),
+    source: isAuto ? 'auto' : 'manual',
+    completed: Boolean(task?.completed),
+    completedAt: task?.completed ? (task.completedAt || null) : null,
+  };
+}
+
 function normalizeTasks(value, isTable) {
-  const existing = Array.isArray(value) ? value.filter(task => task && task.id) : [];
+  const existing = Array.isArray(value)
+    ? value.filter(task => task && task.id).map(normalizeTaskRecord).filter(task => task.title)
+    : [];
   if (!isTable) return existing;
-  return TABLE_TASKS.map(template => {
+  const manualTasks = existing.filter(task => task.source === 'manual');
+  const autoTasks = TABLE_TASKS.map(template => {
     const saved = existing.find(task => task.id === template.id) || {};
     return {
       id: template.id,
       title: template.title,
+      source: 'auto',
       completed: Boolean(saved.completed),
       completedAt: saved.completed ? (saved.completedAt || null) : null,
+    };
+  });
+  return [...autoTasks, ...manualTasks];
+}
+
+function getManualTasks(value) {
+  return normalizeTasks(value, false).filter(task => task.source === 'manual');
+}
+
+function parseManualTaskTitles(value) {
+  return [...new Set(String(value || '').split(/\r?\n/).map(title => title.trim()).filter(Boolean))];
+}
+
+function buildManualTasks(value, existingTasks) {
+  const previous = getManualTasks(existingTasks);
+  const usedIds = new Set();
+  return parseManualTaskTitles(value).map((title, index) => {
+    const saved = previous.find(task => task.title === title && !usedIds.has(task.id));
+    if (saved) {
+      usedIds.add(saved.id);
+      return saved;
+    }
+    return {
+      id: `manual_${Date.now()}_${index}`,
+      title,
+      source: 'manual',
+      completed: false,
+      completedAt: null,
     };
   });
 }
@@ -1833,6 +1882,7 @@ async function saveEvent() {
   const raw = document.getElementById('evDates').value;
   const note = document.getElementById('evNote').value.trim();
   const label = document.getElementById('evLabel').value.trim();
+  const manualTaskText = document.getElementById('evManualTasks').value;
   const editId = document.getElementById('editId').value;
 
   if (!title) {
@@ -1847,13 +1897,15 @@ async function saveEvent() {
   }
 
   const existing = events.find(item => item.id === editId);
+  const manualTasks = buildManualTasks(manualTaskText, existing?.tasks || []);
+  const autoTasks = existing ? normalizeTasks(existing.tasks, true).filter(task => task.source === 'auto') : [];
   const ev = normalizeEventRecord({
     id: editId || ('ev_' + Date.now()),
     title,
     dates,
     note,
     label,
-    tasks: existing?.tasks || [],
+    tasks: [...autoTasks, ...manualTasks],
     color: selectedColor,
   });
 
@@ -1980,7 +2032,7 @@ function renderCalendar() {
       if (evs.length) {
         html += `<div class="event-label-list">`;
         evs.slice(0,2).forEach(e => {
-          const cellTitle = e.label ? `${e.label}・${e.title}` : e.title;
+          const cellTitle = e.title;
           html += `<div class="event-label" title="${escAttr(cellTitle)}" style="background:${e.color||'#29b6d8'}22;color:${e.color||'#29b6d8'};border-left:2px solid ${e.color||'#29b6d8'}">${escText(truncateForCell(cellTitle))}</div>`;
         });
         if (evs.length > 2) html += `<div class="event-label-more">+${evs.length-2}</div>`;
@@ -2121,12 +2173,20 @@ function escText(value) {
     .replace(/"/g, '&quot;');
 }
 
-function getDisplayedMonthTableEvents() {
+function getTasksForEvent(event) {
+  const isTable = event.label === TABLE_LABEL;
+  return normalizeTasks(event.tasks, isTable).filter(task => isTable || task.source === 'manual');
+}
+
+function getDisplayedMonthTaskEvents() {
   const monthPrefix = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
   return events
-    .filter(ev => ev.label === TABLE_LABEL)
-    .map(ev => ({ ...ev, taskDate: (ev.dates || []).find(date => date.startsWith(monthPrefix)) }))
-    .filter(ev => ev.taskDate)
+    .map(ev => ({
+      ...ev,
+      taskDate: (ev.dates || []).find(date => date.startsWith(monthPrefix)),
+      tasks: getTasksForEvent(ev),
+    }))
+    .filter(ev => ev.taskDate && ev.tasks.length)
     .sort((a, b) => a.taskDate.localeCompare(b.taskDate));
 }
 
@@ -2149,12 +2209,9 @@ function daysUntil(dateKey) {
 function renderTaskList() {
   const el = document.getElementById('taskListContainer');
   if (!el) return;
-  const items = getDisplayedMonthTableEvents().map(event => ({
-    ...event,
-    tasks: normalizeTasks(event.tasks, true),
-  }));
+  const items = getDisplayedMonthTaskEvents();
   if (!items.length) {
-    el.innerHTML = `<div class="no-events">${currentYear}年${currentMonth + 1}月の卓予定はありません</div>`;
+    el.innerHTML = `<div class="no-events">${currentYear}年${currentMonth + 1}月のタスクはありません</div>`;
     return;
   }
   const totalCount = items.reduce((count, event) => count + event.tasks.length, 0);
@@ -2169,8 +2226,8 @@ function renderTaskList() {
         <div class="task-event-title" title="${escAttr(ev.title)}">${escText(ev.title)}</div>
       </div>
       ${ev.tasks.map(task => `<label class="task-check${task.completed ? ' done' : ''}">
-        <input type="checkbox" ${task.completed ? 'checked' : ''} onchange="toggleTableTask('${ev.id}','${task.id}',this.checked)">
-        <span>${task.title}</span>
+        <input type="checkbox" ${task.completed ? 'checked' : ''} onchange="toggleTask('${ev.id}','${task.id}',this.checked)">
+        <span>${escText(task.title)}</span>
       </label>`).join('')}
     </section>`;
   }).join('')}</div>`;
@@ -2195,10 +2252,10 @@ function setSidebarMode(mode) {
   renderSidebarMode();
 }
 
-async function toggleTableTask(eventId, taskId, completed) {
+async function toggleTask(eventId, taskId, completed) {
   const event = events.find(item => item.id === eventId);
   if (!event) return;
-  const tasks = normalizeTasks(event.tasks, true).map(task => task.id === taskId
+  const tasks = normalizeTasks(event.tasks, event.label === TABLE_LABEL).map(task => task.id === taskId
     ? { ...task, completed, completedAt: completed ? new Date().toISOString() : null }
     : task);
   await upsertEvent({ ...event, tasks });
@@ -2260,6 +2317,7 @@ function openAdd() {
   document.getElementById('evDates').value = '';
   document.getElementById('evNote').value = '';
   document.getElementById('evLabel').value = '';
+  document.getElementById('evManualTasks').value = '';
   document.getElementById('modalTitle').textContent = 'イベントを追加';
   updateParsePreview();
   setColor(document.querySelector('.cswatch'));
@@ -2275,6 +2333,7 @@ function openEdit(id) {
   document.getElementById('evDates').value = (ev.dates||[]).join('\n');
   document.getElementById('evNote').value = ev.note || '';
   document.getElementById('evLabel').value = ev.label || '';
+  document.getElementById('evManualTasks').value = getManualTasks(ev.tasks).map(task => task.title).join('\n');
   document.getElementById('modalTitle').textContent = 'イベントを編集';
   updateParsePreview();
   const sw = document.querySelector(`.cswatch[data-c="${ev.color||'#29b6d8'}"]`);
@@ -2292,6 +2351,7 @@ function quickAdd(ds) {
   document.getElementById('evDates').value = `${parseInt(m)}/${parseInt(d)}`;
   document.getElementById('evNote').value = '';
   document.getElementById('evLabel').value = '';
+  document.getElementById('evManualTasks').value = '';
   document.getElementById('modalTitle').textContent = 'イベントを追加';
   updateParsePreview();
   setColor(document.querySelector('.cswatch'));
