@@ -2160,13 +2160,16 @@ function daysUntil(dateKey) {
 function renderTaskList() {
   const el = document.getElementById('taskListContainer');
   if (!el) return;
-  const items = getUpcomingTableEvents();
-  if (!items.length) {
-    el.innerHTML = `<div class="no-events">直近2カ月の卓予定はありません</div>`;
+  const items = getUpcomingTableEvents().map(event => ({
+    ...event,
+    tasks: normalizeTasks(event.tasks, true).filter(task => !task.completed),
+  })).filter(event => event.tasks.length);
+  const remainingCount = items.reduce((count, event) => count + event.tasks.length, 0);
+  if (!remainingCount) {
+    el.innerHTML = `<div class="no-events">直近2カ月の未完了タスクはありません</div>`;
     return;
   }
-  el.innerHTML = `<div class="task-list">${items.map(ev => {
-    const tasks = normalizeTasks(ev.tasks, true);
+  el.innerHTML = `<div class="free-days-summary">未完了タスク <strong>${remainingCount}</strong> 件</div><div class="task-list">${items.map(ev => {
     return `<section class="task-card">
       <div class="task-card-head">
         <div>
@@ -2175,8 +2178,8 @@ function renderTaskList() {
         </div>
         <div class="task-event-title" title="${escAttr(ev.title)}">${escText(ev.title)}</div>
       </div>
-      ${tasks.map(task => `<label class="task-check${task.completed ? ' done' : ''}">
-        <input type="checkbox" ${task.completed ? 'checked' : ''} onchange="toggleTableTask('${ev.id}','${task.id}',this.checked)">
+      ${ev.tasks.map(task => `<label class="task-check">
+        <input type="checkbox" onchange="toggleTableTask('${ev.id}','${task.id}',this.checked)">
         <span>${task.title}</span>
       </label>`).join('')}
     </section>`;
