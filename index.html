@@ -1951,6 +1951,7 @@ async function saveMonthNote() {
 // ─── Render ───────────────────────────────────────────
 const MONTHS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
 const WDAYS = ['日','月','火','水','木','金','土'];
+const MAX_MONTH_EVENTS_PER_DAY = 5;
 
 // 全角(漢字・かな・全角記号など)を2、半角を1としてだいたいの表示幅を計算
 function charWidth(ch) {
@@ -2031,11 +2032,13 @@ function renderCalendar() {
         <span class="day-num day-num-big">${d}</span>`;
       if (evs.length) {
         html += `<div class="event-label-list">`;
-        evs.slice(0,2).forEach(e => {
+        evs.slice(0, MAX_MONTH_EVENTS_PER_DAY).forEach(e => {
           const cellTitle = e.title;
           html += `<div class="event-label" title="${escAttr(cellTitle)}" style="background:${e.color||'#29b6d8'}22;color:${e.color||'#29b6d8'};border-left:2px solid ${e.color||'#29b6d8'}">${escText(truncateForCell(cellTitle))}</div>`;
         });
-        if (evs.length > 2) html += `<div class="event-label-more">+${evs.length-2}</div>`;
+        if (evs.length > MAX_MONTH_EVENTS_PER_DAY) {
+          html += `<div class="event-label-more">+${evs.length-MAX_MONTH_EVENTS_PER_DAY}</div>`;
+        }
         html += `</div>`;
       }
       html += `</div>`;
