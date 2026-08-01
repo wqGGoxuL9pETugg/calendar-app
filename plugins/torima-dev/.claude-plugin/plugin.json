@@ -1,0 +1,12 @@
+{
+  "name": "torima-dev",
+  "displayName": "TORIMA Dev",
+  "version": "0.1.0",
+  "description": "TORIMA（単一ファイル構成のカレンダー PWA）を開発するための Claude Code プラグイン。リリース手順、PWA 検証、Firebase 設定の監査、通知スケジューラのデバッグをまとめて提供します。",
+  "author": {
+    "name": "TORIMA"
+  },
+  "repository": "https://github.com/wqGGoxuL9pETugg/calendar-app",
+  "license": "MIT",
+  "keywords": ["torima", "pwa", "calendar", "firebase", "service-worker"]
+}
