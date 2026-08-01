@@ -82,7 +82,14 @@
   }
   .tab.active { background: var(--accent); border-color: var(--accent); color: white; }
 
-  .sync-status { font-size: 11px; color: var(--text3); margin-left: auto; display: flex; align-items: center; gap: 5px; }
+  .sync-status {
+    font-size: 11px; color: var(--text3); margin-left: auto;
+    display: flex; align-items: center; gap: 5px;
+    border: 1px solid transparent; background: transparent;
+    padding: 5px 8px; border-radius: 7px; cursor: pointer;
+    font-family: inherit; transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+  .sync-status:hover { background: var(--surface2); border-color: var(--border2); color: var(--text); }
   .sync-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text3); }
   .sync-dot.connected { background: var(--green); }
   .sync-dot.error { background: var(--red); }
@@ -470,6 +477,27 @@
     line-height: 1.7;
   }
   .config-banner strong { color: var(--accent2); }
+  .config-banner.is-error {
+    background: rgba(255,107,107,0.1);
+    border-color: rgba(255,107,107,0.35);
+  }
+  .config-banner.is-error strong { color: var(--red); }
+  .config-banner-detail {
+    display: inline-block; margin-top: 4px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px; color: var(--text3); word-break: break-all;
+  }
+  .cfg-error-detail {
+    background: rgba(255,107,107,0.1);
+    border: 1px solid rgba(255,107,107,0.35);
+    border-radius: var(--radius);
+    padding: 10px 12px; margin-bottom: 14px;
+    font-size: 12px; color: var(--text2); line-height: 1.7;
+  }
+  .cfg-error-detail strong { color: var(--red); }
+  .field textarea.cfg-bundle { min-height: 64px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+  .cfg-bundle-actions { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+  .cfg-bundle-actions button { padding: 5px 10px; font-size: 11px; }
   .btn-config {
     margin-top: 8px; padding: 5px 12px; border-radius: 6px;
     background: var(--accent); border: none; color: white;
@@ -795,10 +823,10 @@
       <button class="tab" data-view="year">年</button>
       <button class="tab" data-view="list">一覧</button>
     </div>
-    <div class="sync-status">
+    <button class="sync-status" id="syncStatusBtn" type="button" onclick="openConfig()" title="Firebase 接続設定を開く">
       <div class="sync-dot" id="syncDot"></div>
       <span id="syncText">未接続</span>
-    </div>
+    </button>
     <span class="auth-user" id="authUserLabel"></span>
     <button class="btn-auth" id="btnSignOut" onclick="signOutUser()" style="display:none">ログアウト</button>
     <button class="btn-notify" id="btnNotify" onclick="openNotifySettings()" title="通知設定">🔔<span class="notify-dot" id="notifyDot"></span></button>
@@ -979,6 +1007,18 @@
     4. プロジェクト設定 → ウェブアプリを追加 → 設定値をコピー<br>
     5. 下のフィールドに貼り付けて「保存して接続」
   </p>
+
+  <div class="cfg-error-detail" id="cfgErrorDetail" style="display:none"></div>
+
+  <div class="field">
+    <label>設定の引き継ぎ（PC ⇄ スマホ）</label>
+    <textarea id="cfgBundle" class="cfg-bundle" placeholder="ここに設定をまとめて貼り付けて「読み込む」を押すと、下の項目が自動で埋まります" spellcheck="false"></textarea>
+    <div class="cfg-bundle-actions">
+      <button class="btn-cancel" type="button" onclick="exportConfigBundle()">今の設定を書き出す</button>
+      <button class="btn-cancel" type="button" onclick="importConfigBundle()">貼り付けた設定を読み込む</button>
+    </div>
+    <div class="field-hint">設定済みの端末で「書き出す」→ その文字列をコピーして、もう一方の端末で貼り付け→「読み込む」。手入力のミスを防げます。</div>
+  </div>
 
   <div class="field">
     <label>API Key</label>
@@ -1208,7 +1248,8 @@ function initFirebase(cfg) {
     }
   } catch(e) {
     console.error(e);
-    setSyncStatus('error', 'エラー');
+    setConnectionProblem('エラー', e,
+      'Firebase SDK を読み込めていない可能性があります。通信状態を確認して再読み込みしてください。');
   }
 }
 
@@ -1259,9 +1300,10 @@ function connectFirebase(cfg) {
 
         setSyncStatus('connected', '同期中');
       };
-      const handleError = () => {
+      const handleError = error => {
         markRemoteReady();
-        setSyncStatus('error', '接続エラー');
+        setConnectionProblem('接続エラー', error,
+          'データベースに接続できませんでした。Database URL と Realtime Database のセキュリティルールを確認してください。');
       };
 
       eventsRef.on('value', handleValue, handleError);
@@ -1274,19 +1316,85 @@ function connectFirebase(cfg) {
       markAuthReady();
       markRemoteReady();
       setAuthError(formatAuthError(error));
-      setSyncStatus('error', '認証エラー');
+      setConnectionProblem('認証エラー', error, formatAuthError(error));
       applyAppLock();
     });
 
-    document.getElementById('configBanner').style.display = 'none';
+    clearConnectionProblem();
   } catch(e) {
     console.error(e);
     db = null;
     auth = null;
     markAuthReady();
     markRemoteReady();
-    setSyncStatus('error', '設定エラー');
+    setConnectionProblem('設定エラー', e,
+      'Firebase の初期化に失敗しました。設定値（特に Database URL）を確認してください。');
   }
+}
+
+// ─── 接続エラーの可視化 ────────────────────────────────
+// スマホでは開発者コンソールが見られないため、失敗の原因を必ず画面に出す。
+// 設定が保存済みだと設定バナーが隠れて設定画面に到達できなくなるので、
+// 失敗時はバナーを復帰させ、詳細と再設定の導線を出す。
+let lastConnectionProblem = null;
+
+function describeError(error) {
+  if (!error) return '';
+  return String(error.message || error.code || error);
+}
+
+function setConnectionProblem(statusLabel, error, hint) {
+  lastConnectionProblem = { statusLabel, hint, detail: describeError(error) };
+  setSyncStatus('error', statusLabel);
+  renderConnectionProblem();
+}
+
+function clearConnectionProblem() {
+  lastConnectionProblem = null;
+  renderConnectionProblem();
+}
+
+function renderConnectionProblem() {
+  renderConnectionBanner();
+  renderConnectionDetail();
+}
+
+// バナーは「未設定の案内」と共用しているため、接続失敗時だけ上書きし、
+// 復旧時は元の挙動どおり非表示に戻す。
+function renderConnectionBanner() {
+  const banner = document.getElementById('configBanner');
+  if (!banner) return;
+
+  if (!lastConnectionProblem) {
+    banner.style.display = 'none';
+    return;
+  }
+
+  const { statusLabel, hint, detail } = lastConnectionProblem;
+  banner.style.display = '';
+  banner.classList.add('is-error');
+  banner.innerHTML =
+    `<strong>${escText(statusLabel)}：Firebase に接続できていません</strong><br>` +
+    `${escText(hint)}<br>` +
+    (detail ? `<span class="config-banner-detail">詳細: ${escText(detail)}</span><br>` : '') +
+    `<button class="btn-config" onclick="openConfig()">接続設定を確認する</button>`;
+}
+
+// 設定モーダル内の詳細欄だけを更新する（未設定時の案内バナーを消さないよう分離）。
+function renderConnectionDetail() {
+  const detailEl = document.getElementById('cfgErrorDetail');
+  if (!detailEl) return;
+
+  if (!lastConnectionProblem) {
+    detailEl.style.display = 'none';
+    detailEl.textContent = '';
+    return;
+  }
+
+  const { statusLabel, hint, detail } = lastConnectionProblem;
+  detailEl.style.display = '';
+  detailEl.innerHTML = `<strong>${escText(statusLabel)}</strong><br>${escText(hint)}` +
+    (detail ? `<br><span class="config-banner-detail">詳細: ${escText(detail)}</span>` : '');
 }
 
 function setSyncStatus(state, text) {
@@ -2970,21 +3078,76 @@ function openConfig() {
   document.getElementById('cfgDbUrl').value = cfg.databaseURL || '';
   document.getElementById('cfgProjectId').value = cfg.projectId || '';
   document.getElementById('cfgAppId').value = cfg.appId || '';
+  document.getElementById('cfgBundle').value = '';
+  renderConnectionDetail();
   document.getElementById('configModal').style.display = 'flex';
 }
 
 function closeConfig() { document.getElementById('configModal').style.display = 'none'; }
 
-function saveFirebaseConfig() {
-  const cfg = {
+// 設定を1つの文字列にまとめて端末間で移せるようにする。
+// スマホでの手入力ミス（特に Database URL）が接続失敗の主因になりやすいため。
+function readConfigForm() {
+  return {
     apiKey: document.getElementById('cfgApiKey').value.trim(),
     authDomain: document.getElementById('cfgAuthDomain').value.trim(),
     databaseURL: document.getElementById('cfgDbUrl').value.trim(),
     projectId: document.getElementById('cfgProjectId').value.trim(),
     appId: document.getElementById('cfgAppId').value.trim(),
   };
+}
+
+function exportConfigBundle() {
+  const cfg = readConfigForm();
+  const hasAny = Object.values(cfg).some(Boolean);
+  if (!hasAny) {
+    alert('書き出せる設定がありません。');
+    return;
+  }
+  const text = JSON.stringify(cfg);
+  const box = document.getElementById('cfgBundle');
+  box.value = text;
+  box.select();
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(text).catch(() => { /* 手動コピーに任せる */ });
+  }
+}
+
+function importConfigBundle() {
+  const raw = document.getElementById('cfgBundle').value.trim();
+  if (!raw) {
+    alert('先に設定の文字列を貼り付けてください。');
+    return;
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (e) {
+    alert('設定を読み取れませんでした。書き出した文字列をそのまま貼り付けてください。');
+    return;
+  }
+  if (!parsed || typeof parsed !== 'object') {
+    alert('設定を読み取れませんでした。書き出した文字列をそのまま貼り付けてください。');
+    return;
+  }
+
+  document.getElementById('cfgApiKey').value = String(parsed.apiKey || '').trim();
+  document.getElementById('cfgAuthDomain').value = String(parsed.authDomain || '').trim();
+  document.getElementById('cfgDbUrl').value = String(parsed.databaseURL || parsed.databaseUrl || '').trim();
+  document.getElementById('cfgProjectId').value = String(parsed.projectId || '').trim();
+  document.getElementById('cfgAppId').value = String(parsed.appId || '').trim();
+}
+
+function saveFirebaseConfig() {
+  const cfg = readConfigForm();
   if (!cfg.apiKey || !cfg.authDomain || !cfg.databaseURL) {
     alert('API Key / Auth Domain / Database URL は必須です');
+    return;
+  }
+  // Database URL の形式ミスは「設定エラー」の主因なので保存前に弾く。
+  if (!/^https:\/\/[^\s/]+\.(firebaseio\.com|firebasedatabase\.app)\/?$/.test(cfg.databaseURL)) {
+    alert('Database URL の形式が正しくないようです。\n例: https://your-app-default-rtdb.firebaseio.com\n（Firebase Console の Realtime Database 画面に表示される URL をそのまま貼り付けてください）');
     return;
   }
   localStorage.setItem('fbConfig', JSON.stringify(cfg));
