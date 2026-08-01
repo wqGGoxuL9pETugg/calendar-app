@@ -8,8 +8,9 @@
 <meta name="apple-mobile-web-app-title" content="TORIMA">
 <meta name="theme-color" content="#0f0f13">
 <title>TORIMA</title>
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='38' fill='%230f0f13'/%3E%3Crect x='20' y='20' width='140' height='140' rx='22' fill='%231a1a22'/%3E%3Crect x='30' y='48' width='120' height='18' rx='6' fill='%2329b6d8'/%3E%3Crect x='81' y='66' width='18' height='72' rx='6' fill='%2329b6d8'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230f0f13'/%3E%3Crect x='5' y='8' width='22' height='4' rx='2' fill='%2329b6d8'/%3E%3Crect x='14' y='12' width='4' height='14' rx='2' fill='%2329b6d8'/%3E%3C/svg%3E">
+<link rel="manifest" href="manifest.webmanifest">
 
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -288,6 +289,45 @@
   .field textarea { resize: vertical; min-height: 90px; }
   .field-hint { font-size: 10px; color: var(--text3); margin-top: 4px; line-height: 1.5; }
 
+  /* ── Notify field ── */
+  .notify-toggle-row {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .notify-toggle-row input[type="checkbox"] {
+    appearance: auto; -webkit-appearance: auto;
+    width: 16px; height: 16px; flex: none;
+    padding: 0; border: none; background: none; border-radius: 0;
+    accent-color: var(--accent); cursor: pointer;
+  }
+  .notify-toggle-row .notify-toggle-label {
+    font-size: 13px; color: var(--text); cursor: pointer; text-transform: none;
+    letter-spacing: normal; font-weight: 500;
+  }
+  .notify-detail { margin-top: 10px; padding: 10px; background: var(--bg); border: 1px solid var(--border2); border-radius: 7px; }
+  .notify-detail[hidden] { display: none; }
+  .notify-subrow { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+  .notify-subrow:last-child { margin-bottom: 0; }
+  .notify-sublabel { font-size: 10px; font-weight: 600; color: var(--text2); letter-spacing: 0.05em; text-transform: uppercase; }
+  .notify-offsets { display: flex; gap: 6px; flex-wrap: wrap; }
+  .notify-offset-chip {
+    padding: 5px 12px; border-radius: 999px; border: 1px solid var(--border2); background: transparent;
+    color: var(--text2); cursor: pointer; font-size: 11px; transition: all 0.15s;
+  }
+  .notify-offset-chip.active { background: var(--accent); border-color: var(--accent); color: white; }
+  .field input.notify-time-input {
+    width: auto; background: var(--surface2);
+    border: 1px solid var(--border2); border-radius: 7px;
+    color: var(--text); font-size: 13px; padding: 6px 10px; font-family: inherit;
+  }
+  .field input.notify-time-input:focus { outline: none; border-color: var(--accent); }
+  .notify-status { font-size: 11px; color: var(--text3); line-height: 1.6; }
+  .notify-status.warn { color: var(--amber); }
+  .notify-status a, .notify-status button.notify-link {
+    color: var(--accent2); cursor: pointer; background: none; border: none;
+    font-size: 11px; padding: 0; text-decoration: underline;
+  }
+  .notify-bell { display: inline-block; margin-left: 4px; }
+
   .parse-preview {
     background: var(--bg); border: 1px solid var(--border2);
     border-radius: 7px; padding: 8px 10px; margin-top: 6px;
@@ -546,8 +586,9 @@
     .sync-status { order: 4; margin-left: 0; width: 100%; justify-content: flex-start; }
     .auth-user { order: 5; font-size: 10px; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     #btnSignOut { order: 6; }
-    .btn-export { order: 7; }
-    .btn-add { order: 8; margin-left: auto; }
+    .btn-notify { order: 7; }
+    .btn-export { order: 8; }
+    .btn-add { order: 9; margin-left: auto; }
 
     /* タブをコンパクトに */
     .tab { padding: 5px 9px; font-size: 11px; }
@@ -634,6 +675,21 @@
     transition: background 0.15s, color 0.15s, border-color 0.15s;
   }
   .btn-export:hover { background: var(--surface2); color: var(--text); border-color: var(--accent); }
+
+  /* ── Notify status button ── */
+  .btn-notify {
+    padding: 6px 10px; border-radius: 7px;
+    border: 1px solid var(--border2); background: transparent;
+    color: var(--text2); font-size: 13px; cursor: pointer; position: relative;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .btn-notify:hover { background: var(--surface2); color: var(--text); border-color: var(--accent); }
+  .btn-notify .notify-dot {
+    position: absolute; top: 4px; right: 4px; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--text3);
+  }
+  .btn-notify .notify-dot.ok { background: var(--green); }
+  .btn-notify .notify-dot.blocked { background: var(--red); }
 
   /* ── Export modal ── */
   .export-modal { max-width: 520px; }
@@ -745,6 +801,7 @@
     </div>
     <span class="auth-user" id="authUserLabel"></span>
     <button class="btn-auth" id="btnSignOut" onclick="signOutUser()" style="display:none">ログアウト</button>
+    <button class="btn-notify" id="btnNotify" onclick="openNotifySettings()" title="通知設定">🔔<span class="notify-dot" id="notifyDot"></span></button>
     <button class="btn-export" onclick="openExport()">⬇ 出力</button>
     <button class="btn-add" onclick="openAdd()">＋ 追加</button>
   </header>
@@ -846,6 +903,32 @@
     <label>タスク（任意）</label>
     <textarea id="evManualTasks" placeholder="1行に1つずつ入力&#10;例：宿を予約する&#10;参加者に連絡する"></textarea>
     <div class="field-hint">ラベルがなくても追加できます。卓ではCS・立ち絵に加えて表示されます。</div>
+  </div>
+
+  <div class="field">
+    <label>通知</label>
+    <div class="notify-toggle-row">
+      <input type="checkbox" id="evNotifyEnabled" onchange="onNotifyToggle()">
+      <label class="notify-toggle-label" for="evNotifyEnabled">この予定を端末に通知する</label>
+    </div>
+    <div class="notify-detail" id="notifyDetail" hidden>
+      <div class="notify-subrow">
+        <span class="notify-sublabel">タイミング（複数選択可）</span>
+        <div class="notify-offsets" id="notifyOffsets">
+          <button type="button" class="notify-offset-chip active" data-offset="0" onclick="toggleNotifyOffset(this)">当日</button>
+          <button type="button" class="notify-offset-chip" data-offset="1" onclick="toggleNotifyOffset(this)">前日</button>
+          <button type="button" class="notify-offset-chip" data-offset="2" onclick="toggleNotifyOffset(this)">2日前</button>
+          <button type="button" class="notify-offset-chip" data-offset="3" onclick="toggleNotifyOffset(this)">3日前</button>
+          <button type="button" class="notify-offset-chip" data-offset="7" onclick="toggleNotifyOffset(this)">1週間前</button>
+        </div>
+      </div>
+      <div class="notify-subrow">
+        <span class="notify-sublabel">通知時刻</span>
+        <input type="time" id="evNotifyTime" class="notify-time-input" value="09:00">
+      </div>
+      <div class="notify-status" id="evNotifyStatus"></div>
+    </div>
+    <div class="field-hint">開いている間のみ通知します。iPhoneはホーム画面に追加すると使えます。</div>
   </div>
 
   <div class="field">
@@ -971,6 +1054,28 @@
     <button class="btn-cancel" onclick="closeExport()">閉じる</button>
     <button class="btn-export-copy" onclick="copyExport()">コピー</button>
     <button class="btn-save" onclick="downloadExport()">ダウンロード</button>
+  </div>
+</div>
+</div>
+
+<!-- Notify Settings Modal -->
+<div class="overlay" id="notifySettingsModal" style="display:none">
+<div class="modal">
+  <div class="modal-header">
+    <h2>通知設定</h2>
+    <button class="modal-close" onclick="closeNotifySettings()">✕</button>
+  </div>
+  <p style="font-size:12px;color:var(--text2);line-height:1.8;margin-bottom:14px">
+    予定ごとの通知は各イベントの編集画面でON/OFFできます。ここでは端末の通知許可の確認とテスト送信ができます。<br><br>
+    <strong style="color:var(--accent2)">注意：</strong><br>
+    ・このアプリを開いている（またはバックグラウンドタブの）間だけ通知が届きます。完全に終了している間の分は次回起動時にまとめて表示されます。<br>
+    ・データ復号前（ロック画面）では通知できません。<br>
+    ・iPhoneはSafariのタブでは通知できません。ホーム画面に追加してアプリとして開いてください。
+  </p>
+  <div class="notify-status" id="notifySettingsStatus"></div>
+  <div class="modal-footer">
+    <button class="btn-cancel" onclick="closeNotifySettings()">閉じる</button>
+    <button class="btn-save" id="notifyTestBtn" onclick="sendTestNotification()">テスト通知を送る</button>
   </div>
 </div>
 </div>
@@ -1494,6 +1599,26 @@ const TABLE_TASKS = [
   { id: 'character-art', title: '立ち絵' },
 ];
 
+// ─── Notify ───────────────────────────────────────────
+const NOTIFY_OFFSETS = [0, 1, 2, 3, 7]; // 何日前に通知するか（0=当日）
+const NOTIFY_OFFSET_LABELS = { 0: '当日', 1: '前日', 2: '2日前', 3: '3日前', 7: '1週間前' };
+
+function normalizeNotify(value) {
+  const timeMatch = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(value?.time || ''));
+  const offsets = Array.isArray(value?.offsets)
+    ? uniqueSortedNumbers(value.offsets.filter(o => NOTIFY_OFFSETS.includes(Number(o))).map(Number))
+    : [];
+  return {
+    enabled: Boolean(value?.enabled) && offsets.length > 0,
+    time: timeMatch ? value.time : '09:00',
+    offsets: offsets.length ? offsets : [0],
+  };
+}
+
+function uniqueSortedNumbers(nums) {
+  return [...new Set(nums)].sort((a, b) => a - b);
+}
+
 function normalizeTaskRecord(task) {
   const isAuto = task?.source === 'auto' || TABLE_TASKS.some(template => template.id === task?.id);
   return {
@@ -1560,6 +1685,7 @@ function normalizeEventRecord(ev) {
     label,
     tasks: normalizeTasks(ev?.tasks, label === TABLE_LABEL),
     color: ev?.color || '#29b6d8',
+    notify: normalizeNotify(ev?.notify),
   };
 }
 
@@ -1759,6 +1885,7 @@ async function loadEventsFromStore() {
     events = [];
     monthNotes = {};
     render();
+    notifyTick();
     return;
   }
 
@@ -1768,6 +1895,7 @@ async function loadEventsFromStore() {
       await persistEvents();
     }
     render();
+    notifyTick();
     return;
   }
 
@@ -1777,12 +1905,14 @@ async function loadEventsFromStore() {
     monthNotes = {};
     await persistEvents();
     render();
+    notifyTick();
     return;
   }
 
   events = [];
   monthNotes = {};
   render();
+  notifyTick();
 }
 
 function renderDateAdjuster(dates) {
@@ -1860,6 +1990,7 @@ async function upsertEvent(ev) {
   else events.push(normalized);
   await persistEvents();
   render();
+  notifyTick();
 }
 
 async function removeDateFromEvent(id, dateKey) {
@@ -1907,6 +2038,7 @@ async function saveEvent() {
     label,
     tasks: [...autoTasks, ...manualTasks],
     color: selectedColor,
+    notify: readNotifyFormState(),
   });
 
   await upsertEvent(ev);
@@ -2108,7 +2240,7 @@ function renderList() {
       html += `<div class="event-row">
         <div class="color-bar" style="background:${ev.color||'#29b6d8'}"></div>
         <div class="event-body">
-          <div class="event-title-text">${escText(ev.title)}</div>
+          <div class="event-title-text">${escText(ev.title)}${notifyBadge(ev)}</div>
           <div class="event-dates-text">${datesStr}</div>
           ${labelBadge(ev.label)}
           ${ev.note?`<div class="event-note-text">${ev.note}</div>`:''}
@@ -2166,6 +2298,11 @@ function labelBadge(label) {
   if (!label) return '';
   const cls = label === TABLE_LABEL ? ' table' : '';
   return `<span class="label-badge${cls}">${escText(label)}</span>`;
+}
+
+function notifyBadge(ev) {
+  if (!ev?.notify?.enabled) return '';
+  return `<span class="notify-bell" title="通知あり">🔔</span>`;
 }
 
 function escText(value) {
@@ -2277,7 +2414,7 @@ function showDayPopup(ds, e) {
     html += `<div class="popup-ev">
       <div class="pip" style="background:${ev.color||'#29b6d8'};width:6px;height:6px;flex-shrink:0"></div>
       <div style="flex:1">
-        <div class="popup-ev-title">${escText(ev.title)}</div>
+        <div class="popup-ev-title">${escText(ev.title)}${notifyBadge(ev)}</div>
         ${labelBadge(ev.label)}
         ${ev.note?`<div class="popup-ev-note">${ev.note}</div>`:''}
         ${ev.dates && ev.dates.length > 1 ? `
@@ -2313,6 +2450,243 @@ document.addEventListener('click', e => {
   if (!e.target.closest('.day-popup') && !e.target.closest('.day-cell')) closeDayPopup();
 });
 
+// ─── Notify エンジン ────────────────────────────────────
+// 通知はアプリを開いている（フォアグラウンド or バックグラウンドタブの）間のみ発火する。
+// サーバー側にはプッシュ基盤が無く、イベントデータはこの端末上でしか復号できないため、
+// 「開いている間に、期限が来た通知を拾って出す」というローカルスケジューラ方式にしている。
+
+const NOTIFY_FIRED_KEY = 'torimaNotifyFired';
+const NOTIFY_LAST_TICK_KEY = 'torimaNotifyLastTick';
+const NOTIFY_FIRED_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 発火済み記録は30日で剪定
+const NOTIFY_CATCHUP_MS = 24 * 60 * 60 * 1000; // 見逃し分を遡ってまとめて出す最大範囲
+
+function isIosDevice() {
+  return /iP(hone|od|ad)/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+function isStandaloneDisplay() {
+  return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
+    window.navigator.standalone === true;
+}
+
+function notifySupportInfo() {
+  if (!('Notification' in window)) {
+    return { ok: false, level: 'unsupported', message: 'この端末・ブラウザは通知に対応していません。' };
+  }
+  if (isIosDevice() && !isStandaloneDisplay()) {
+    return { ok: false, level: 'ios-needs-install', message: 'iPhoneで通知を使うには、共有メニューの「ホーム画面に追加」からアプリとして開いてください。' };
+  }
+  const perm = Notification.permission;
+  if (perm === 'denied') {
+    return { ok: false, level: 'denied', message: '通知がブロックされています。ブラウザの設定サイトから通知を許可してください。' };
+  }
+  if (perm === 'granted') {
+    return { ok: true, level: 'granted', message: '通知は有効です。' };
+  }
+  return { ok: false, level: 'default', message: '通知を許可すると、この端末に予定の通知が届きます。' };
+}
+
+async function requestNotifyPermission() {
+  if (!('Notification' in window)) { refreshNotifyUi(); return 'unsupported'; }
+  if (Notification.permission === 'default') {
+    try { await Notification.requestPermission(); } catch (e) { console.error(e); }
+  }
+  refreshNotifyUi();
+  return Notification.permission;
+}
+
+let swRegistrationPromise = null;
+function ensureServiceWorkerRegistration() {
+  if (!('serviceWorker' in navigator)) return Promise.resolve(null);
+  if (!swRegistrationPromise) {
+    swRegistrationPromise = navigator.serviceWorker.register('sw.js').catch(e => {
+      console.error(e);
+      return null;
+    });
+  }
+  return swRegistrationPromise;
+}
+
+async function showEventNotification(ev, dateKey, offset) {
+  const [, m, d] = dateKey.split('-');
+  const dLabel = `${parseInt(m)}月${parseInt(d)}日`;
+  const whenLabel = offset === 0 ? '（当日）' : `の${NOTIFY_OFFSET_LABELS[offset] || offset + '日前'}`;
+  const title = ev.title || 'イベント';
+  const body = `${dLabel}${whenLabel}${ev.note ? ' ・ ' + ev.note : ''}`;
+  const options = { body, tag: `torima-${ev.id}-${dateKey}-${offset}`, icon: 'icon-192.png', badge: 'icon-192.png' };
+
+  const reg = await ensureServiceWorkerRegistration();
+  if (reg && reg.showNotification) {
+    try { await reg.showNotification(title, options); return; } catch (e) { console.error(e); }
+  }
+  try { new Notification(title, options); } catch (e) { console.error(e); }
+}
+
+// dateKey ("YYYY-MM-DD") の offsetDays 日前・timeStr 時刻を端末のローカル時刻として返す。
+// parseDateKey/toUtcDate はUTC基準なのでここでは使わない（時差でズレるため）。
+function occurrenceTime(dateKey, offsetDays, timeStr) {
+  const [y, m, d] = dateKey.split('-').map(Number);
+  const [hh, mm] = String(timeStr || '09:00').split(':').map(Number);
+  return new Date(y, m - 1, d - offsetDays, hh, mm, 0, 0);
+}
+
+function loadNotifyFiredMap() {
+  try { return JSON.parse(localStorage.getItem(NOTIFY_FIRED_KEY) || '{}'); } catch (e) { return {}; }
+}
+
+function saveNotifyFiredMap(map) {
+  try { localStorage.setItem(NOTIFY_FIRED_KEY, JSON.stringify(map)); } catch (e) { /* ignore */ }
+}
+
+function pruneNotifyFiredMap(map, now) {
+  const cutoff = now - NOTIFY_FIRED_TTL_MS;
+  Object.keys(map).forEach(key => { if (map[key] < cutoff) delete map[key]; });
+  return map;
+}
+
+function notifyTick() {
+  if (!isAppUnlocked) return; // ロック中は予定が復号されていないため何もしない
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+
+  const now = Date.now();
+  const lastTickRaw = Number(localStorage.getItem(NOTIFY_LAST_TICK_KEY) || 0);
+
+  if (!lastTickRaw) {
+    // 初回起動時は「今」を基準にする（過去の予定を一気に通知しない）
+    localStorage.setItem(NOTIFY_LAST_TICK_KEY, String(now));
+    return;
+  }
+
+  const from = Math.max(lastTickRaw, now - NOTIFY_CATCHUP_MS);
+  const fired = pruneNotifyFiredMap(loadNotifyFiredMap(), now);
+  let changed = false;
+
+  events.forEach(ev => {
+    if (!ev?.notify?.enabled) return;
+    (ev.dates || []).forEach(dateKey => {
+      (ev.notify.offsets || []).forEach(offset => {
+        const when = occurrenceTime(dateKey, offset, ev.notify.time).getTime();
+        if (when <= from || when > now) return;
+        const key = `${ev.id}|${dateKey}|${offset}`;
+        if (fired[key]) return;
+        fired[key] = now;
+        changed = true;
+        showEventNotification(ev, dateKey, offset);
+      });
+    });
+  });
+
+  if (changed) saveNotifyFiredMap(fired);
+  localStorage.setItem(NOTIFY_LAST_TICK_KEY, String(now));
+}
+
+let notifyIntervalId = null;
+function startNotifyScheduler() {
+  if (notifyIntervalId) return;
+  notifyTick();
+  notifyIntervalId = setInterval(notifyTick, 30000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') notifyTick();
+  });
+}
+
+function updateNotifyDot() {
+  const dot = document.getElementById('notifyDot');
+  if (!dot) return;
+  const info = notifySupportInfo();
+  dot.className = 'notify-dot' + (info.level === 'granted' ? ' ok' : info.level === 'denied' ? ' blocked' : '');
+}
+
+function updateNotifySettingsStatus() {
+  const el = document.getElementById('notifySettingsStatus');
+  if (!el || document.getElementById('notifySettingsModal').style.display === 'none') return;
+  const info = notifySupportInfo();
+  el.innerHTML = (info.ok ? '✓ ' : '') + escText(info.message) +
+    (info.level === 'default' ? ' <button type="button" class="notify-link" onclick="requestNotifyPermission()">通知を許可する</button>' : '');
+  el.classList.toggle('warn', !info.ok);
+}
+
+function updateEvNotifyStatus() {
+  const el = document.getElementById('evNotifyStatus');
+  const checkbox = document.getElementById('evNotifyEnabled');
+  if (!el || !checkbox) return;
+  if (!checkbox.checked) { el.textContent = ''; el.classList.remove('warn'); return; }
+  const info = notifySupportInfo();
+  el.innerHTML = info.ok ? '' : escText(info.message) +
+    (info.level === 'default' ? ' <button type="button" class="notify-link" onclick="requestNotifyPermission()">許可する</button>' : '');
+  el.classList.toggle('warn', !info.ok);
+}
+
+function refreshNotifyUi() {
+  updateNotifyDot();
+  updateNotifySettingsStatus();
+  updateEvNotifyStatus();
+}
+
+function openNotifySettings() {
+  document.getElementById('notifySettingsModal').style.display = 'flex';
+  updateNotifySettingsStatus();
+}
+
+function closeNotifySettings() {
+  document.getElementById('notifySettingsModal').style.display = 'none';
+}
+
+async function sendTestNotification() {
+  if (!('Notification' in window)) { alert('この端末・ブラウザは通知に対応していません。'); return; }
+  if (Notification.permission === 'default') await requestNotifyPermission();
+  if (Notification.permission !== 'granted') {
+    alert('通知が許可されていません。設定から許可してください。');
+    return;
+  }
+  const options = { body: 'この通知が見えれば設定は正常です。', icon: 'icon-192.png', badge: 'icon-192.png', tag: 'torima-test-' + Date.now() };
+  const reg = await ensureServiceWorkerRegistration();
+  if (reg && reg.showNotification) {
+    try { await reg.showNotification('TORIMA テスト通知', options); return; } catch (e) { console.error(e); }
+  }
+  try { new Notification('TORIMA テスト通知', options); } catch (e) { console.error(e); }
+}
+
+// ─── Notify フォーム（追加/編集モーダル） ────────────────
+function updateNotifyDetailVisibility() {
+  const enabled = document.getElementById('evNotifyEnabled').checked;
+  const detail = document.getElementById('notifyDetail');
+  if (enabled) detail.removeAttribute('hidden');
+  else detail.setAttribute('hidden', '');
+}
+
+async function onNotifyToggle() {
+  updateNotifyDetailVisibility();
+  if (document.getElementById('evNotifyEnabled').checked) await requestNotifyPermission();
+  refreshNotifyUi();
+}
+
+function toggleNotifyOffset(el) {
+  el.classList.toggle('active');
+  const anyActive = document.querySelectorAll('#notifyOffsets .notify-offset-chip.active').length > 0;
+  if (!anyActive) el.classList.add('active'); // 最低ひとつは選択された状態を維持する
+}
+
+function setNotifyFormState(notify) {
+  const n = normalizeNotify(notify);
+  document.getElementById('evNotifyEnabled').checked = n.enabled;
+  document.getElementById('evNotifyTime').value = n.time;
+  document.querySelectorAll('#notifyOffsets .notify-offset-chip').forEach(chip => {
+    chip.classList.toggle('active', n.offsets.includes(Number(chip.dataset.offset)));
+  });
+  updateNotifyDetailVisibility();
+  refreshNotifyUi();
+}
+
+function readNotifyFormState() {
+  const enabled = document.getElementById('evNotifyEnabled').checked;
+  const time = document.getElementById('evNotifyTime').value || '09:00';
+  const offsets = [...document.querySelectorAll('#notifyOffsets .notify-offset-chip.active')]
+    .map(chip => Number(chip.dataset.offset));
+  return normalizeNotify({ enabled, time, offsets });
+}
+
 // ─── Modal ────────────────────────────────────────────
 function openAdd() {
   document.getElementById('editId').value = '';
@@ -2324,6 +2698,7 @@ function openAdd() {
   document.getElementById('modalTitle').textContent = 'イベントを追加';
   updateParsePreview();
   setColor(document.querySelector('.cswatch'));
+  setNotifyFormState(null);
   document.getElementById('addModal').style.display = 'flex';
 }
 
@@ -2341,6 +2716,7 @@ function openEdit(id) {
   updateParsePreview();
   const sw = document.querySelector(`.cswatch[data-c="${ev.color||'#29b6d8'}"]`);
   setColor(sw || document.querySelector('.cswatch'));
+  setNotifyFormState(ev.notify);
   document.getElementById('addModal').style.display = 'flex';
 }
 
@@ -2358,6 +2734,7 @@ function quickAdd(ds) {
   document.getElementById('modalTitle').textContent = 'イベントを追加';
   updateParsePreview();
   setColor(document.querySelector('.cswatch'));
+  setNotifyFormState(null);
   document.getElementById('addModal').style.display = 'flex';
 }
 
@@ -2626,6 +3003,9 @@ if (savedCfg && savedCfg.apiKey) {
 
 render();
 applyAppLock();
+ensureServiceWorkerRegistration();
+startNotifyScheduler();
+refreshNotifyUi();
 </script>
 </body>
 </html>
