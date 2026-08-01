@@ -1,0 +1,14 @@
+{
+  "name": "torima",
+  "description": "TORIMA（カレンダー PWA）の開発を助ける Claude Code プラグインのマーケットプレイス。",
+  "owner": {
+    "name": "TORIMA"
+  },
+  "plugins": [
+    {
+      "name": "torima-dev",
+      "source": "./plugins/torima-dev",
+      "description": "TORIMA（単一ファイル構成のカレンダー PWA）を開発するためのスキル・フック・レビュー用エージェント一式。"
+    }
+  ]
+}
